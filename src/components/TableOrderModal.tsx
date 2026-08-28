@@ -8,16 +8,33 @@ type SelectedTable = {
 
 type OrderItem = OrderProduct & { quantity: number };
 
+const quickProducts: OrderProduct[] = [
+  { category: "1 Cervejas", code: "2", name: "1 - Brahma 600ml", price: 9.9 },
+  { category: "1 Cervejas", code: "4", name: "3 Original 600ml", price: 12.5 },
+  { category: "1 Cervejas", code: "5", name: "4 Serramalte 600ml", price: 12.5 },
+  { category: "1 Cervejas", code: "9", name: "Budwaiser long", price: 9.5 },
+  { category: "1 Cervejas", code: "221", name: "cabare", price: 9.9 },
+  { category: "1 Cervejas", code: "129", name: "heineken 600", price: 15 },
+  { category: "1 Cervejas", code: "8", name: "Heineken long", price: 9.5 },
+  { category: "1 Cervejas", code: "1", name: "Heineken zero", price: 9.5 },
+  { category: "1 Cervejas", code: "10", name: "Malzbier", price: 9.5 },
+  { category: "1 Cervejas", code: "0", name: "originalzinha", price: 8 },
+];
+
 function ActionIcon({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex h-6 w-6 items-center justify-center text-[20px]">{children}</span>;
 }
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const plainMoney = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function TableOrderModal() {
   const [selectedTable, setSelectedTable] = useState<SelectedTable | null>(null);
   const [productsOpen, setProductsOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [quickQuery, setQuickQuery] = useState("");
+  const [quickProduct, setQuickProduct] = useState<OrderProduct | null>(null);
+  const [quickQuantity, setQuickQuantity] = useState(1);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -32,6 +49,9 @@ export function TableOrderModal() {
       setSelectedTable({ number: number.padStart(2, "0"), occupied: table.classList.contains("table-box-active") });
       setItems([]);
       setProductsOpen(false);
+      setQuickQuery("");
+      setQuickProduct(null);
+      setQuickQuantity(1);
     };
 
     document.addEventListener("click", handleClick);
@@ -41,7 +61,15 @@ export function TableOrderModal() {
   useEffect(() => {
     if (!selectedTable || productsOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedTable(null);
+      if (event.key === "Escape") {
+        if (quickProduct) {
+          setQuickProduct(null);
+          setQuickQuery("");
+          setQuickQuantity(1);
+        } else {
+          setSelectedTable(null);
+        }
+      }
       if (event.key === "F3") {
         event.preventDefault();
         setProductsOpen(true);
@@ -49,7 +77,7 @@ export function TableOrderModal() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTable, productsOpen]);
+  }, [selectedTable, productsOpen, quickProduct]);
 
   const orderNumber = useMemo(() => {
     if (!selectedTable) return "";
@@ -58,12 +86,30 @@ export function TableOrderModal() {
 
   const total = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
 
-  const addProduct = (product: OrderProduct) => {
+  const quickMatches = useMemo(() => {
+    const query = quickQuery.trim().toLocaleLowerCase("pt-BR");
+    if (query.length < 2 || quickProduct) return [];
+    return quickProducts
+      .filter((product) => product.name.toLocaleLowerCase("pt-BR").includes(query) || product.code.includes(query))
+      .slice(0, 5);
+  }, [quickQuery, quickProduct]);
+
+  const addProduct = (product: OrderProduct, quantity = 1) => {
     setItems((current) => {
       const existing = current.find((item) => item.code === product.code);
-      if (existing) return current.map((item) => item.code === product.code ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...current, { ...product, quantity: 1 }];
+      if (existing) {
+        return current.map((item) => item.code === product.code ? { ...item, quantity: item.quantity + quantity } : item);
+      }
+      return [...current, { ...product, quantity }];
     });
+  };
+
+  const confirmQuickAdd = () => {
+    if (!quickProduct) return;
+    addProduct(quickProduct, quickQuantity);
+    setQuickProduct(null);
+    setQuickQuery("");
+    setQuickQuantity(1);
   };
 
   if (!selectedTable) return null;
@@ -87,7 +133,7 @@ export function TableOrderModal() {
             </div>
           </div>
 
-          <div className="flex h-[75px] shrink-0 items-center border-b border-[#d4d4d4] bg-white px-4">
+          <div className="relative flex h-[75px] shrink-0 items-center border-b border-[#d4d4d4] bg-white px-4">
             <div className="flex w-[250px] items-center">
               <div className="mr-4 text-[34px] font-bold leading-none tracking-tighter text-[#32965d]">{selectedTable.number}</div>
               <div className="flex flex-col justify-center">
@@ -97,9 +143,78 @@ export function TableOrderModal() {
             </div>
 
             <div className="flex flex-1 items-center justify-end gap-4">
-              <div className="relative w-[220px]"><span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400">⌕</span><input className="block w-full border border-[#abadb3] py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-[#0078d7] focus:outline-none" placeholder="Buscar Produto..." type="text" /></div>
+              <div className="relative w-[220px]">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400">⌕</span>
+                <input
+                  value={quickQuery}
+                  onChange={(event) => {
+                    setQuickQuery(event.target.value);
+                    setQuickProduct(null);
+                    setQuickQuantity(1);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && quickMatches[0]) {
+                      event.preventDefault();
+                      setQuickProduct(quickMatches[0]);
+                      setQuickQuantity(1);
+                    }
+                  }}
+                  className="block w-full border border-[#abadb3] py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-[#0078d7] focus:outline-none"
+                  placeholder="Buscar Produto..."
+                  type="text"
+                />
+                {quickMatches.length > 0 && (
+                  <div className="absolute left-0 top-[34px] z-[125] w-[320px] border border-[#b7b7b7] bg-white shadow-lg">
+                    {quickMatches.map((product) => (
+                      <button
+                        key={product.code}
+                        type="button"
+                        onClick={() => {
+                          setQuickProduct(product);
+                          setQuickQuery(product.name);
+                          setQuickQuantity(1);
+                        }}
+                        className="flex w-full items-center justify-between border-b border-gray-100 px-3 py-2 text-left text-sm hover:bg-[#dcebfa]"
+                      >
+                        <span>{product.name}</span>
+                        <strong>{plainMoney.format(product.price)}</strong>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button type="button" onClick={() => setProductsOpen(true)} className="flex items-center gap-2 border border-transparent px-2 py-1 font-bold text-[#0078d7] hover:border-blue-200 hover:bg-blue-50"><ActionIcon>▣</ActionIcon><span className="text-[15px]">Produtos <span className="text-sm font-normal text-gray-500">(F3)</span></span></button>
             </div>
+
+            {quickProduct && (
+              <div className="absolute right-[32px] top-[58px] z-[120] w-[270px] border border-[#c9c9c9] bg-white p-3 shadow-lg">
+                <button type="button" onClick={() => { setQuickProduct(null); setQuickQuery(""); setQuickQuantity(1); }} className="absolute right-2 top-1 text-lg font-bold text-[#e35d4f]">×</button>
+                <div className="mb-5 mt-4 text-center text-base font-bold text-black">{quickProduct.name} - {plainMoney.format(quickProduct.price)}</div>
+                <div className="mb-5 flex items-center justify-center gap-3">
+                  <button type="button" onClick={() => setQuickQuantity((value) => Math.max(1, value - 1))} className="flex h-6 w-6 items-center justify-center rounded-full bg-[#87c5f7] text-lg font-bold text-white">−</button>
+                  <input
+                    type="number"
+                    min={1}
+                    value={quickQuantity}
+                    onChange={(event) => setQuickQuantity(Math.max(1, Number(event.target.value) || 1))}
+                    className="h-8 w-[76px] border border-gray-300 text-center font-bold focus:border-[#0078d7] focus:outline-none"
+                  />
+                  <button type="button" onClick={() => setQuickQuantity((value) => value + 1)} className="flex h-6 w-6 items-center justify-center rounded-full bg-[#87c5f7] text-lg font-bold text-white">+</button>
+                </div>
+                <button type="button" className="mb-3 flex h-11 w-full items-center justify-center gap-3 border border-gray-300 bg-white font-medium text-black hover:bg-gray-50"><span className="text-2xl">☷</span> Personalizar (F2)</button>
+                <button
+                  type="button"
+                  onClick={confirmQuickAdd}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") confirmQuickAdd();
+                  }}
+                  autoFocus
+                  className="flex h-11 w-full items-center justify-center gap-4 bg-[#444] font-bold text-white hover:bg-[#333]"
+                >
+                  <span className="text-3xl font-light">＋</span> Adicionar (ENTER)
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex min-h-0 flex-1 overflow-hidden bg-white">
