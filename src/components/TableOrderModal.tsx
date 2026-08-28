@@ -36,9 +36,13 @@ function BasketIcon() {
 
 function PersonalizeIcon() {
   return (
-    <svg className="h-8 w-8" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M13 8h14M13 16h14M13 24h14" />
-      <path d="m4.5 7 2 2 4-4M4.5 15l2 2 4-4M4.5 23l2 2 4-4" />
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="8" x2="21" y1="6" y2="6" />
+      <line x1="8" x2="21" y1="12" y2="12" />
+      <line x1="8" x2="21" y1="18" y2="18" />
+      <line x1="3" x2="3.01" y1="6" y2="6" />
+      <line x1="3" x2="3.01" y1="12" y2="12" />
+      <line x1="3" x2="3.01" y1="18" y2="18" />
     </svg>
   );
 }
@@ -111,18 +115,6 @@ export function TableOrderModal() {
     [items],
   );
 
-  const quickMatches = useMemo(() => {
-    const query = quickQuery.trim().toLocaleLowerCase("pt-BR");
-    if (query.length < 2 || quickProduct) return [];
-    return quickProducts
-      .filter(
-        (product) =>
-          product.name.toLocaleLowerCase("pt-BR").includes(query) ||
-          product.code.includes(query),
-      )
-      .slice(0, 5);
-  }, [quickQuery, quickProduct]);
-
   const addProduct = (product: OrderProduct, quantity = 1) => {
     setItems((current) => {
       const existing = current.find((item) => item.code === product.code);
@@ -133,6 +125,18 @@ export function TableOrderModal() {
           : item,
       );
     });
+  };
+
+  const findQuickProduct = (value: string) => {
+    const query = value.trim().toLocaleLowerCase("pt-BR");
+    if (query.length < 2) return null;
+    return (
+      quickProducts.find(
+        (product) =>
+          product.name.toLocaleLowerCase("pt-BR").includes(query) ||
+          product.code === query,
+      ) ?? null
+    );
   };
 
   const confirmQuickAdd = () => {
@@ -201,40 +205,14 @@ export function TableOrderModal() {
                 <input
                   value={quickQuery}
                   onChange={(event) => {
-                    setQuickQuery(event.target.value);
-                    setQuickProduct(null);
+                    const value = event.target.value;
+                    setQuickQuery(value);
+                    setQuickProduct(findQuickProduct(value));
                     setQuickQuantity(1);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && quickMatches[0]) {
-                      event.preventDefault();
-                      setQuickProduct(quickMatches[0]);
-                      setQuickQuery(quickMatches[0].name);
-                    }
                   }}
                   className="h-[31px] w-full border border-[#c7cbd0] bg-white py-1 pl-9 pr-2 text-[12px] focus:border-[#6ca9dc] focus:outline-none"
                   placeholder="Buscar Produto..."
                 />
-
-                {quickMatches.length > 0 && (
-                  <div className="absolute left-0 top-[31px] z-[125] w-[300px] border border-[#b7b7b7] bg-white shadow-lg">
-                    {quickMatches.map((product) => (
-                      <button
-                        key={product.code}
-                        type="button"
-                        onClick={() => {
-                          setQuickProduct(product);
-                          setQuickQuery(product.name);
-                          setQuickQuantity(1);
-                        }}
-                        className="flex w-full items-center justify-between border-b border-gray-100 px-3 py-2 text-left text-sm hover:bg-[#dcebfa]"
-                      >
-                        <span>{product.name}</span>
-                        <strong>{plainMoney.format(product.price)}</strong>
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <button
@@ -248,44 +226,79 @@ export function TableOrderModal() {
             </div>
 
             {quickProduct && (
-              <div className="absolute right-[32px] top-[55px] z-[130] w-[270px] border border-[#c8c8c8] border-b-[3px] border-b-[#cfcfcf] bg-white px-[10px] pb-[10px] pt-[27px]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuickProduct(null);
-                    setQuickQuery("");
-                    setQuickQuantity(1);
-                  }}
-                  className="absolute right-[8px] top-[6px] flex h-[14px] w-[14px] items-center justify-center bg-[#e26150] text-[12px] font-bold text-white"
-                >
-                  ×
-                </button>
+              <div className="absolute right-[32px] top-[55px] z-[130] flex w-[285px] flex-col rounded-sm border border-gray-300 bg-white shadow-[0_4px_15px_rgba(0,0,0,0.2)]">
+                <div className="absolute left-0 top-[-2px] h-[2px] w-full bg-gray-200" />
 
-                <div className="mb-[28px] whitespace-nowrap text-center text-[15px] font-bold text-black">
-                  {quickProduct.name} - {plainMoney.format(quickProduct.price)}
+                <div className="flex justify-end p-[2px]">
+                  <button
+                    type="button"
+                    aria-label="Fechar lançamento"
+                    onClick={() => {
+                      setQuickProduct(null);
+                      setQuickQuery("");
+                      setQuickQuantity(1);
+                    }}
+                    className="flex h-5 w-5 items-center justify-center rounded-sm border border-[#d43f3a] bg-[#d9534f] text-xs font-bold text-white shadow-sm hover:bg-[#c9302c]"
+                  >
+                    <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" />
+                    </svg>
+                  </button>
                 </div>
 
-                <div className="mb-[22px] flex items-center justify-center gap-[10px]">
-                  <button type="button" onClick={() => setQuickQuantity((value) => Math.max(1, value - 1))} className="flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#87c5f7] text-[18px] font-bold text-white">−</button>
-                  <input
-                    type="number"
-                    min={1}
-                    value={quickQuantity}
-                    onChange={(event) => setQuickQuantity(Math.max(1, Number(event.target.value) || 1))}
-                    className="h-[31px] w-[77px] border border-[#d0d4d8] p-0 text-center text-[12px] font-bold text-black focus:outline-none"
-                  />
-                  <button type="button" onClick={() => setQuickQuantity((value) => value + 1)} className="flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#87c5f7] text-[18px] font-bold text-white">+</button>
+                <div className="flex flex-col items-center px-5 pb-5 pt-3">
+                  <h2 className="mb-6 text-center font-mono text-lg font-bold tracking-tight text-black">
+                    {quickProduct.name} - {plainMoney.format(quickProduct.price)}
+                  </h2>
+
+                  <div className="mb-8 flex w-full items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      aria-label="Diminuir quantidade"
+                      onClick={() => setQuickQuantity((value) => Math.max(1, value - 1))}
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-[#7aade9] bg-[#8dbbf2] text-lg leading-none text-white shadow-sm hover:bg-[#79aef0]"
+                    >
+                      −
+                    </button>
+                    <input
+                      aria-label="Quantidade"
+                      type="text"
+                      readOnly
+                      value={quickQuantity}
+                      className="h-8 w-20 border border-[#ccc] text-center font-bold shadow-inner focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Aumentar quantidade"
+                      onClick={() => setQuickQuantity((value) => value + 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full border border-[#7aade9] bg-[#8dbbf2] text-lg leading-none text-white shadow-sm hover:bg-[#79aef0]"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="flex w-full flex-col gap-3">
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-center gap-2 rounded-sm border border-[#ccc] bg-white py-2.5 text-[#333] hover:border-[#adadad] hover:bg-[#e6e6e6]"
+                    >
+                      <PersonalizeIcon />
+                      <span className="text-[13px] font-semibold text-gray-800">Personalizar (F2)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={confirmQuickAdd}
+                      autoFocus
+                      className="flex w-full items-center justify-center gap-2 rounded-sm border border-[#333] bg-[#3f3f3f] py-3 text-white hover:bg-[#2e2e2e]"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span className="text-[13px] font-bold tracking-wide text-white">Adicionar (ENTER)</span>
+                    </button>
+                  </div>
                 </div>
-
-                <button type="button" className="mb-[10px] flex h-[46px] w-full items-center justify-center gap-[12px] border border-[#d1d1d1] bg-white text-[12px] text-black">
-                  <PersonalizeIcon />
-                  <span>Personalizar (F2)</span>
-                </button>
-
-                <button type="button" onClick={confirmQuickAdd} autoFocus className="flex h-[45px] w-full items-center justify-center gap-[12px] bg-[#444] text-[12px] font-bold text-white hover:bg-[#333]">
-                  <svg className="h-[30px] w-[30px]" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 5v22M5 16h22" /></svg>
-                  <span>Adicionar (ENTER)</span>
-                </button>
               </div>
             )}
           </div>
