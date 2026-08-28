@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { TableOrderModal } from "../components/TableOrderModal";
+import { OrderMoreOptionsModal } from "../components/OrderMoreOptionsModal";
 
 function NotFoundComponent() {
   return (
@@ -123,6 +124,7 @@ function RootComponent() {
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
       <TableOrderModal />
+      <OrderMoreOptionsModal />
     </QueryClientProvider>
   );
 }
