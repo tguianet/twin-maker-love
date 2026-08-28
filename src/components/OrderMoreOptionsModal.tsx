@@ -8,8 +8,32 @@ function TrashIcon() {
   );
 }
 
+type PopupPosition = {
+  left: number;
+  top: number;
+};
+
 export function OrderMoreOptionsModal() {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<PopupPosition>({ left: 0, top: 0 });
+
+  const syncPosition = () => {
+    const tableDialog = document.querySelector<HTMLElement>('[aria-label^="Mesa/Comanda"]');
+    if (!tableDialog) return;
+
+    const rect = tableDialog.getBoundingClientRect();
+    setPosition({
+      left: rect.left + 16,
+      top: rect.top + 84,
+    });
+  };
+
+  const show = () => {
+    syncPosition();
+    setOpen(true);
+  };
+
+  const close = () => setOpen(false);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -21,7 +45,7 @@ export function OrderMoreOptionsModal() {
       if (label.includes("Mais Opções") || label.includes("Mais Opcoes")) {
         event.preventDefault();
         event.stopPropagation();
-        setOpen(true);
+        show();
       }
     };
 
@@ -31,7 +55,7 @@ export function OrderMoreOptionsModal() {
         if (tableDialog) {
           event.preventDefault();
           event.stopPropagation();
-          setOpen(true);
+          show();
         }
         return;
       }
@@ -39,25 +63,29 @@ export function OrderMoreOptionsModal() {
       if (event.key === "Escape" && open) {
         event.preventDefault();
         event.stopImmediatePropagation();
-        setOpen(false);
+        close();
       }
+    };
+
+    const handleResize = () => {
+      if (open) syncPosition();
     };
 
     document.addEventListener("click", handleClick, true);
     window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("resize", handleResize);
     return () => {
       document.removeEventListener("click", handleClick, true);
       window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("resize", handleResize);
     };
   }, [open]);
 
   if (!open) return null;
 
-  const close = () => setOpen(false);
-
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-[#e5e7eb]/90"
+      className="fixed inset-0 z-[299] bg-transparent"
       role="presentation"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) close();
@@ -65,12 +93,13 @@ export function OrderMoreOptionsModal() {
     >
       <div
         role="dialog"
-        aria-modal="true"
+        aria-modal="false"
         aria-label="Mais opções do pedido"
-        className="flex w-[266px] flex-col border border-gray-300 bg-white pb-4 pt-6 font-[Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] shadow-xl"
+        style={{ left: position.left, top: position.top }}
+        className="fixed z-[300] flex w-[266px] flex-col border border-gray-300 bg-white pb-4 pt-6 font-[Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="flex flex-col gap-5 text-center text-sm text-[#111827]">
+        <div className="flex flex-col gap-5 text-center text-[12px] text-[#111827]">
           <button type="button" className="w-full px-4 py-1 transition-colors hover:bg-gray-100">
             Trocar para...
           </button>
@@ -79,11 +108,11 @@ export function OrderMoreOptionsModal() {
             Visualizar Conta Resumida
           </button>
 
-          <button type="button" className="w-full px-4 py-1 leading-6 transition-colors hover:bg-gray-100">
+          <button type="button" className="w-full px-4 py-1 leading-5 transition-colors hover:bg-gray-100">
             Transferir/Copiar Itens para Outro Pedido
           </button>
 
-          <button type="button" className="w-full px-4 py-1 leading-6 transition-colors hover:bg-gray-100">
+          <button type="button" className="w-full px-4 py-1 leading-5 transition-colors hover:bg-gray-100">
             Imprimir Fichas de Consumação <strong>(1 Item novo)</strong>
           </button>
 
@@ -97,7 +126,7 @@ export function OrderMoreOptionsModal() {
 
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-2 px-4 py-1 text-[#a31a1a] transition-colors hover:bg-red-50"
+            className="flex w-full items-center justify-center gap-2 px-4 py-1 text-[#b91c1c] transition-colors hover:bg-red-50"
           >
             <TrashIcon />
             <span>Excluir Pedido</span>
@@ -106,7 +135,7 @@ export function OrderMoreOptionsModal() {
           <button
             type="button"
             onClick={close}
-            className="mt-4 w-full px-4 py-1 transition-colors hover:bg-gray-100"
+            className="mt-3 w-full px-4 py-1 transition-colors hover:bg-gray-100"
           >
             Cancelar (ESC)
           </button>
