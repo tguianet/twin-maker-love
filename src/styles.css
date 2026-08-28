@@ -142,3 +142,89 @@
     color: var(--color-foreground);
   }
 }
+
+/* ── TGuia Food desktop system tokens ───────────────────────────── */
+@theme inline {
+  --color-app-gray: var(--app-gray);
+  --color-app-border: var(--app-border);
+  --color-app-blue: var(--app-blue);
+  --color-app-text: var(--app-text);
+  --color-app-table: var(--app-table);
+  --color-app-table-hover: var(--app-table-hover);
+  --color-app-table-active: var(--app-table-active);
+  --color-app-table-active-hover: var(--app-table-active-hover);
+  --color-app-ribbon: var(--app-ribbon);
+  --color-app-chrome: var(--app-chrome);
+  --color-app-chrome-hover: var(--app-chrome-hover);
+  --color-app-status: var(--app-status);
+  --color-app-close: var(--app-close);
+  --color-app-on-dark: var(--app-on-dark);
+  --color-app-icon-blue: var(--app-icon-blue);
+  --color-app-icon-navy: var(--app-icon-navy);
+  --color-app-icon-yellow: var(--app-icon-yellow);
+  --color-app-icon-gold: var(--app-icon-gold);
+  --color-app-icon-red: var(--app-icon-red);
+  --color-app-icon-green: var(--app-icon-green);
+  --color-app-icon-green-dark: var(--app-icon-green-dark);
+  --color-app-icon-sky: var(--app-icon-sky);
+  --color-app-icon-gray: var(--app-icon-gray);
+  --color-app-icon-orange: var(--app-icon-orange);
+  --color-app-muted: var(--app-muted);
+  --color-app-line: var(--app-line);
+  --color-app-field: var(--app-field);
+  --color-app-hover: var(--app-hover);
+}
+
+:root {
+  --app-gray: oklch(0.972 0.002 247);
+  --app-border: oklch(0.861 0 0);
+  --app-blue: oklch(0.554 0.176 254.5);
+  --app-text: oklch(0.335 0 0);
+  --app-table: oklch(0.516 0 0);
+  --app-table-hover: oklch(0.442 0 0);
+  --app-table-active: oklch(0.539 0.129 148.5);
+  --app-table-active-hover: oklch(0.468 0.129 148.5);
+  --app-ribbon: oklch(0.955 0 0);
+  --app-chrome: oklch(0.933 0 0);
+  --app-chrome-hover: oklch(0.877 0 0);
+  --app-status: oklch(0.861 0 0);
+  --app-close: oklch(0.577 0.245 27.325);
+  --app-on-dark: oklch(1 0 0);
+  --app-icon-blue: oklch(0.623 0.188 259.8);
+  --app-icon-navy: oklch(0.424 0.199 265.6);
+  --app-icon-yellow: oklch(0.795 0.162 86);
+  --app-icon-gold: oklch(0.681 0.162 75.8);
+  --app-icon-red: oklch(0.637 0.208 25.3);
+  --app-icon-green: oklch(0.723 0.192 149.6);
+  --app-icon-green-dark: oklch(0.627 0.194 149.2);
+  --app-icon-sky: oklch(0.707 0.165 254.6);
+  --app-icon-gray: oklch(0.551 0.023 264.4);
+  --app-icon-orange: oklch(0.705 0.187 47.6);
+  --app-muted: oklch(0.551 0.023 264.4);
+  --app-line: oklch(0.872 0.01 258.3);
+  --app-field: oklch(1 0 0);
+  --app-hover: oklch(0.967 0.003 264.5);
+}
+
+.app-scrollbar-hide::-webkit-scrollbar { display: none; }
+.app-scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+.ribbon-button:hover {
+  background-color: oklch(0.947 0.028 246.6);
+  border-color: oklch(0.929 0.021 233.6);
+}
+
+.table-box {
+  background-color: var(--app-table);
+  transition: background-color 0.1s;
+}
+.table-box:hover { background-color: var(--app-table-hover); cursor: pointer; }
+
+.table-box-active { background-color: var(--app-table-active); }
+.table-box-active:hover { background-color: var(--app-table-active-hover); }
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(17, minmax(0, 1fr));
+  gap: 6px;
+}
