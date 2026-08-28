@@ -25,6 +25,25 @@ function ActionIcon({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex h-6 w-6 items-center justify-center text-[20px]">{children}</span>;
 }
 
+function BasketIcon() {
+  return (
+    <svg className="h-7 w-7" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2.3">
+      <path d="M5 12h22l-2.2 13H7.2L5 12Z" />
+      <path d="M10 12 16 5l6 7" />
+      <path d="M11 16v6M16 16v6M21 16v6" />
+    </svg>
+  );
+}
+
+function PersonalizeIcon() {
+  return (
+    <svg className="h-8 w-8" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M13 8h14M13 16h14M13 24h14" />
+      <path d="m4.5 7 2 2 4-4M4.5 15l2 2 4-4M4.5 23l2 2 4-4" />
+    </svg>
+  );
+}
+
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const plainMoney = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -142,9 +161,12 @@ export function TableOrderModal() {
               </div>
             </div>
 
-            <div className="flex flex-1 items-center justify-end gap-4">
-              <div className="relative w-[220px]">
-                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-gray-400">⌕</span>
+            <div className="flex flex-1 items-center justify-end gap-3">
+              <div className="relative w-[150px]">
+                <svg className="pointer-events-none absolute left-2 top-1/2 h-[19px] w-[19px] -translate-y-1/2 text-[#7c8793]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-4-4" />
+                </svg>
                 <input
                   value={quickQuery}
                   onChange={(event) => {
@@ -156,15 +178,16 @@ export function TableOrderModal() {
                     if (event.key === "Enter" && quickMatches[0]) {
                       event.preventDefault();
                       setQuickProduct(quickMatches[0]);
+                      setQuickQuery(quickMatches[0].name);
                       setQuickQuantity(1);
                     }
                   }}
-                  className="block w-full border border-[#abadb3] py-1.5 pl-8 pr-3 text-sm placeholder-gray-400 focus:border-[#0078d7] focus:outline-none"
+                  className="h-[31px] w-full border border-[#c7cbd0] bg-white py-1 pl-9 pr-2 text-[12px] text-[#20252b] focus:border-[#6ca9dc] focus:outline-none"
                   placeholder="Buscar Produto..."
                   type="text"
                 />
                 {quickMatches.length > 0 && (
-                  <div className="absolute left-0 top-[34px] z-[125] w-[320px] border border-[#b7b7b7] bg-white shadow-lg">
+                  <div className="absolute left-0 top-[31px] z-[125] w-[300px] border border-[#b7b7b7] bg-white shadow-lg">
                     {quickMatches.map((product) => (
                       <button
                         key={product.code}
@@ -183,25 +206,65 @@ export function TableOrderModal() {
                   </div>
                 )}
               </div>
-              <button type="button" onClick={() => setProductsOpen(true)} className="flex items-center gap-2 border border-transparent px-2 py-1 font-bold text-[#0078d7] hover:border-blue-200 hover:bg-blue-50"><ActionIcon>▣</ActionIcon><span className="text-[15px]">Produtos <span className="text-sm font-normal text-gray-500">(F3)</span></span></button>
+              <button type="button" onClick={() => setProductsOpen(true)} className="flex h-[34px] items-center gap-1.5 border border-transparent px-1 font-bold text-[#087cf0] hover:bg-blue-50">
+                <BasketIcon />
+                <span className="text-[13px] text-black">Produtos <span className="font-normal text-[#4b5563]">(F3)</span></span>
+              </button>
             </div>
 
             {quickProduct && (
-              <div className="absolute right-[32px] top-[58px] z-[120] w-[270px] border border-[#c9c9c9] bg-white p-3 shadow-lg">
-                <button type="button" onClick={() => { setQuickProduct(null); setQuickQuery(""); setQuickQuantity(1); }} className="absolute right-2 top-1 text-lg font-bold text-[#e35d4f]">×</button>
-                <div className="mb-5 mt-4 text-center text-base font-bold text-black">{quickProduct.name} - {plainMoney.format(quickProduct.price)}</div>
-                <div className="mb-5 flex items-center justify-center gap-3">
-                  <button type="button" onClick={() => setQuickQuantity((value) => Math.max(1, value - 1))} className="flex h-6 w-6 items-center justify-center rounded-full bg-[#87c5f7] text-lg font-bold text-white">−</button>
+              <div className="absolute right-[32px] top-[55px] z-[130] w-[270px] border border-[#c8c8c8] border-b-[3px] border-b-[#cfcfcf] bg-white px-[10px] pb-[10px] pt-[27px] shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
+                <button
+                  type="button"
+                  aria-label="Fechar lançamento rápido"
+                  onClick={() => {
+                    setQuickProduct(null);
+                    setQuickQuery("");
+                    setQuickQuantity(1);
+                  }}
+                  className="absolute right-[8px] top-[6px] flex h-[14px] w-[14px] items-center justify-center bg-[#e26150] text-[12px] font-bold leading-none text-white hover:bg-[#c94c3d]"
+                >
+                  ×
+                </button>
+
+                <div className="mb-[28px] whitespace-nowrap text-center text-[15px] font-bold text-black">
+                  {quickProduct.name} - {plainMoney.format(quickProduct.price)}
+                </div>
+
+                <div className="mb-[22px] flex items-center justify-center gap-[10px]">
+                  <button
+                    type="button"
+                    aria-label="Diminuir quantidade"
+                    onClick={() => setQuickQuantity((value) => Math.max(1, value - 1))}
+                    className="flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#87c5f7] text-[18px] font-bold leading-none text-white hover:bg-[#65afea]"
+                  >
+                    −
+                  </button>
                   <input
                     type="number"
                     min={1}
                     value={quickQuantity}
                     onChange={(event) => setQuickQuantity(Math.max(1, Number(event.target.value) || 1))}
-                    className="h-8 w-[76px] border border-gray-300 text-center font-bold focus:border-[#0078d7] focus:outline-none"
+                    className="h-[31px] w-[77px] appearance-none border border-[#d0d4d8] bg-white p-0 text-center text-[12px] font-bold text-black focus:border-[#6ca9dc] focus:outline-none"
                   />
-                  <button type="button" onClick={() => setQuickQuantity((value) => value + 1)} className="flex h-6 w-6 items-center justify-center rounded-full bg-[#87c5f7] text-lg font-bold text-white">+</button>
+                  <button
+                    type="button"
+                    aria-label="Aumentar quantidade"
+                    onClick={() => setQuickQuantity((value) => value + 1)}
+                    className="flex h-[21px] w-[21px] items-center justify-center rounded-full bg-[#87c5f7] text-[18px] font-bold leading-none text-white hover:bg-[#65afea]"
+                  >
+                    +
+                  </button>
                 </div>
-                <button type="button" className="mb-3 flex h-11 w-full items-center justify-center gap-3 border border-gray-300 bg-white font-medium text-black hover:bg-gray-50"><span className="text-2xl">☷</span> Personalizar (F2)</button>
+
+                <button
+                  type="button"
+                  className="mb-[10px] flex h-[46px] w-full items-center justify-center gap-[12px] border border-[#d1d1d1] bg-white text-[12px] font-normal text-black hover:bg-[#f6f6f6]"
+                >
+                  <PersonalizeIcon />
+                  <span>Personalizar (F2)</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={confirmQuickAdd}
@@ -209,9 +272,12 @@ export function TableOrderModal() {
                     if (event.key === "Enter") confirmQuickAdd();
                   }}
                   autoFocus
-                  className="flex h-11 w-full items-center justify-center gap-4 bg-[#444] font-bold text-white hover:bg-[#333]"
+                  className="flex h-[45px] w-full items-center justify-center gap-[12px] bg-[#444444] text-[12px] font-bold text-white hover:bg-[#333333]"
                 >
-                  <span className="text-3xl font-light">＋</span> Adicionar (ENTER)
+                  <svg className="h-[30px] w-[30px]" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M16 5v22M5 16h22" />
+                  </svg>
+                  <span>Adicionar (ENTER)</span>
                 </button>
               </div>
             )}
