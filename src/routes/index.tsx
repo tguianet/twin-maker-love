@@ -24,6 +24,7 @@ export const Route = createFileRoute("/")({
 });
 
 const TABLE_STATE_KEY = "tguia-food-table-closing-state";
+const TABLE_NAME_KEY = "tguia-food-table-names";
 const allFreeTables = Array.from({ length: 85 }, (_, i) => String(i + 2).padStart(2, "0"));
 
 const icon = (path: string, className: string) => (
@@ -31,14 +32,6 @@ const icon = (path: string, className: string) => (
     <path d={path} strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
   </svg>
 );
-
-function LockIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M7 10V7a5 5 0 0110 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2 0h6V7a3 3 0 00-6 0v3z" />
-    </svg>
-  );
-}
 
 function RibbonButton({ width, children, svg }: { width: string; children: React.ReactNode; svg: React.ReactNode }) {
   return (
@@ -58,15 +51,34 @@ function readTableStates(): Record<string, boolean> {
   }
 }
 
+function readTableNames(): Record<string, string> {
+  const defaults: Record<string, string> = { "01": "marcos", "02": "lucas" };
+  if (typeof window === "undefined") return defaults;
+  try {
+    return {
+      ...defaults,
+      ...(JSON.parse(window.localStorage.getItem(TABLE_NAME_KEY) ?? "{}") as Record<string, string>),
+    };
+  } catch {
+    return defaults;
+  }
+}
+
 function Index() {
   const [tableStates, setTableStates] = useState<Record<string, boolean>>(() => readTableStates());
+  const [tableNames, setTableNames] = useState<Record<string, string>>(() => readTableNames());
 
   useEffect(() => {
-    const refresh = () => setTableStates(readTableStates());
+    const refresh = () => {
+      setTableStates(readTableStates());
+      setTableNames(readTableNames());
+    };
     window.addEventListener("tguia:table-state-change", refresh as EventListener);
+    window.addEventListener("tguia:table-name-change", refresh as EventListener);
     window.addEventListener("storage", refresh);
     return () => {
       window.removeEventListener("tguia:table-state-change", refresh as EventListener);
+      window.removeEventListener("tguia:table-name-change", refresh as EventListener);
       window.removeEventListener("storage", refresh);
     };
   }, []);
@@ -143,25 +155,21 @@ function Index() {
             <div
               className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center transition-colors"
               style={{ backgroundColor: table01Blocked ? "#e5ad1d" : undefined }}
-              title={table01Blocked ? "Mesa 01 - Em Fechamento" : "Mesa 01 - Marcos"}
+              title={`Mesa 01 - ${tableNames["01"] || "marcos"}`}
             >
-              {table01Blocked && <span className="absolute left-2 top-2 text-black"><LockIcon /></span>}
               <span className="text-3xl font-bold text-white">01</span>
-              <span className={`mt-1 text-xs uppercase ${table01Blocked ? "font-bold text-black" : "text-app-on-dark"}`}>
-                {table01Blocked ? "Em Fechamento" : "marcos"}
-              </span>
+              <span className="mt-1 text-xs text-white">{tableNames["01"] || "marcos"}</span>
             </div>
 
             {closingTables.map((table) => (
               <div
                 key={table}
-                className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center text-black transition-colors"
+                className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center transition-colors"
                 style={{ backgroundColor: "#e5ad1d" }}
-                title={`Mesa ${table} - Em Fechamento`}
+                title={`Mesa ${table}${tableNames[table] ? ` - ${tableNames[table]}` : ""}`}
               >
-                <span className="absolute left-2 top-2"><LockIcon /></span>
                 <span className="text-3xl font-bold text-white">{table}</span>
-                <span className="mt-1 text-[10px] font-bold uppercase text-black">Em Fechamento</span>
+                {tableNames[table] && <span className="mt-1 text-xs text-white">{tableNames[table]}</span>}
               </div>
             ))}
           </div>
