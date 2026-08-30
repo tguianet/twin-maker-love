@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,13 +24,21 @@ export const Route = createFileRoute("/")({
 });
 
 const TABLE_STATE_KEY = "tguia-food-table-closing-state";
-const freeTables = Array.from({ length: 85 }, (_, i) => String(i + 2).padStart(2, "0"));
+const allFreeTables = Array.from({ length: 85 }, (_, i) => String(i + 2).padStart(2, "0"));
 
 const icon = (path: string, className: string) => (
   <svg className={`mb-1 h-8 w-8 ${className}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path d={path} strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
   </svg>
 );
+
+function LockIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M7 10V7a5 5 0 0110 0v3h1a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2v-8a2 2 0 012-2h1zm2 0h6V7a3 3 0 00-6 0v3z" />
+    </svg>
+  );
+}
 
 function RibbonButton({ width, children, svg }: { width: string; children: React.ReactNode; svg: React.ReactNode }) {
   return (
@@ -62,6 +70,18 @@ function Index() {
       window.removeEventListener("storage", refresh);
     };
   }, []);
+
+  const closingTables = useMemo(
+    () => allFreeTables.filter((table) => Boolean(tableStates[table])),
+    [tableStates],
+  );
+
+  const freeTables = useMemo(
+    () => allFreeTables.filter((table) => !tableStates[table]),
+    [tableStates],
+  );
+
+  const ongoingCount = 1 + closingTables.length;
 
   return (
     <div className="relative mx-auto flex h-[1080px] w-[1920px] select-none flex-col bg-background text-app-text">
@@ -117,30 +137,37 @@ function Index() {
 
       <main className="app-scrollbar-hide flex flex-1 flex-col overflow-y-auto bg-background p-6">
         <section className="mb-6">
-          <h1 className="mb-4 text-sm font-bold text-app-text">Pedidos em Andamento (1 de 1)</h1>
-          <div className="flex space-x-4">
+          <h1 className="mb-4 text-sm font-bold text-app-text">Pedidos em Andamento ({ongoingCount} de {ongoingCount})</h1>
+          <div className="flex flex-wrap gap-4">
             <div className="table-box-active flex h-24 w-24 cursor-pointer flex-col items-center justify-center text-app-on-dark transition-colors">
               <span className="text-3xl font-bold">01</span>
               <span className="mt-1 text-xs uppercase">marcos</span>
             </div>
+
+            {closingTables.map((table) => (
+              <div
+                key={table}
+                className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center text-black transition-colors"
+                style={{ backgroundColor: "#e5ad1d" }}
+                title={`Mesa ${table} - Em Fechamento`}
+              >
+                <span className="absolute left-2 top-2"><LockIcon /></span>
+                <span className="text-3xl font-bold text-white">{table}</span>
+                <span className="mt-1 text-[10px] font-bold uppercase text-black">Em Fechamento</span>
+              </div>
+            ))}
           </div>
         </section>
 
         <section className="flex-1">
           <h2 className="mb-4 text-sm font-bold text-app-text">Mesas / Comandas Livres</h2>
           <div className="app-grid">
-            {freeTables.map((n) => {
-              const blocked = Boolean(tableStates[n]);
-              return (
-                <div
-                  key={n}
-                  className={`table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark ${blocked ? "ring-2 ring-[#e59b13] ring-inset" : ""}`}
-                >
-                  <span className={`text-[9px] ${blocked ? "font-bold text-[#ffd166]" : ""}`}>{blocked ? "EM FECHAMENTO" : "ABRIR"}</span>
-                  <span className={`mt-2 text-2xl font-bold ${blocked ? "text-[#ffd166]" : ""}`}>{n}</span>
-                </div>
-              );
-            })}
+            {freeTables.map((n) => (
+              <div key={n} className="table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark">
+                <span className="text-[9px]">ABRIR</span>
+                <span className="mt-2 text-2xl font-bold">{n}</span>
+              </div>
+            ))}
           </div>
         </section>
       </main>
