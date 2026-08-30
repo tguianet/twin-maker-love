@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 
 type ModalPosition = { left: number; top: number };
 
+type ConsumptionReceiptEvent = CustomEvent<{ tableNumber?: string }>;
+
 function PrintIcon() {
   return (
     <svg className="h-5 w-5 text-[#5599ff]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 002 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -33,26 +35,36 @@ export function ReceiptPreviewModal() {
     });
   };
 
+  const resolveCurrentTable = () => {
+    const tableDialog = document.querySelector<HTMLElement>('[aria-label^="Mesa/Comanda"]');
+    const dialogLabel = tableDialog?.getAttribute("aria-label") ?? "";
+    const match = dialogLabel.match(/Mesa\/Comanda\s+(\d+)/i);
+    if (match?.[1]) setTableNumber(match[1]);
+  };
+
+  const showReceipt = (forcedTableNumber?: string) => {
+    if (forcedTableNumber) setTableNumber(forcedTableNumber);
+    else resolveCurrentTable();
+    syncPosition();
+    setOpen(true);
+  };
+
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const button = target?.closest("button");
       if (!button) return;
       const label = button.textContent?.replace(/\s+/g, " ").trim() ?? "";
-      const isSummary = label.includes("Visualizar Conta Resumida");
-      const isConsumptionTicket = label.includes("Imprimir Fichas de Consumação") || label.includes("Imprimir Fichas de Consumacao");
-      if (!isSummary && !isConsumptionTicket) return;
+      if (!label.includes("Visualizar Conta Resumida")) return;
 
       event.preventDefault();
       event.stopPropagation();
+      showReceipt();
+    };
 
-      const tableDialog = document.querySelector<HTMLElement>('[aria-label^="Mesa/Comanda"]');
-      const dialogLabel = tableDialog?.getAttribute("aria-label") ?? "";
-      const match = dialogLabel.match(/Mesa\/Comanda\s+(\d+)/i);
-      if (match?.[1]) setTableNumber(match[1]);
-
-      syncPosition();
-      setOpen(true);
+    const handleConsumptionReceipt = (event: Event) => {
+      const customEvent = event as ConsumptionReceiptEvent;
+      showReceipt(customEvent.detail?.tableNumber);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -68,10 +80,12 @@ export function ReceiptPreviewModal() {
     };
 
     document.addEventListener("click", handleClick, true);
+    window.addEventListener("tguia:open-consumption-receipt", handleConsumptionReceipt as EventListener);
     window.addEventListener("keydown", handleKeyDown, true);
     window.addEventListener("resize", handleResize);
     return () => {
       document.removeEventListener("click", handleClick, true);
+      window.removeEventListener("tguia:open-consumption-receipt", handleConsumptionReceipt as EventListener);
       window.removeEventListener("keydown", handleKeyDown, true);
       window.removeEventListener("resize", handleResize);
     };
