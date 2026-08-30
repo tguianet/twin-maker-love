@@ -81,6 +81,7 @@ function Index() {
     [tableStates],
   );
 
+  const table01Blocked = Boolean(tableStates["01"]);
   const ongoingCount = 1 + closingTables.length;
 
   return (
@@ -139,9 +140,16 @@ function Index() {
         <section className="mb-6">
           <h1 className="mb-4 text-sm font-bold text-app-text">Pedidos em Andamento ({ongoingCount} de {ongoingCount})</h1>
           <div className="flex flex-wrap gap-4">
-            <div className="table-box-active flex h-24 w-24 cursor-pointer flex-col items-center justify-center text-app-on-dark transition-colors">
-              <span className="text-3xl font-bold">01</span>
-              <span className="mt-1 text-xs uppercase">marcos</span>
+            <div
+              className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center transition-colors"
+              style={{ backgroundColor: table01Blocked ? "#e5ad1d" : undefined }}
+              title={table01Blocked ? "Mesa 01 - Em Fechamento" : "Mesa 01 - Marcos"}
+            >
+              {table01Blocked && <span className="absolute left-2 top-2 text-black"><LockIcon /></span>}
+              <span className="text-3xl font-bold text-white">01</span>
+              <span className={`mt-1 text-xs uppercase ${table01Blocked ? "font-bold text-black" : "text-app-on-dark"}`}>
+                {table01Blocked ? "Em Fechamento" : "marcos"}
+              </span>
             </div>
 
             {closingTables.map((table) => (
