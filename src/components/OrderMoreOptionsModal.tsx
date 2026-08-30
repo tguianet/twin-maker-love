@@ -78,6 +78,16 @@ export function OrderMoreOptionsModal() {
     setOpen(false);
   };
 
+  const openConsumptionReceipt = () => {
+    syncPosition();
+    close();
+    window.dispatchEvent(
+      new CustomEvent("tguia:open-consumption-receipt", {
+        detail: { tableNumber: currentTable },
+      }),
+    );
+  };
+
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
@@ -166,7 +176,13 @@ export function OrderMoreOptionsModal() {
             </button>
             <button type="button" className="w-full px-4 py-1 transition-colors hover:bg-gray-100">Visualizar Conta Resumida</button>
             <button type="button" className="w-full px-4 py-1 leading-5 transition-colors hover:bg-gray-100">Transferir/Copiar Itens para Outro Pedido</button>
-            <button type="button" className="w-full px-4 py-1 leading-5 transition-colors hover:bg-gray-100">Imprimir Fichas de Consumação <strong>(1 Item novo)</strong></button>
+            <button
+              type="button"
+              onClick={openConsumptionReceipt}
+              className="w-full px-4 py-1 leading-5 transition-colors hover:bg-gray-100"
+            >
+              Imprimir Fichas de Consumação <strong>(1 Item novo)</strong>
+            </button>
             <button type="button" className="w-full px-4 py-1 transition-colors hover:bg-gray-100">Enviar para WhatsApp</button>
             <button type="button" className="w-full px-4 py-1 transition-colors hover:bg-gray-100">Recalcular Pedido</button>
             <button type="button" className="flex w-full items-center justify-center gap-2 px-4 py-1 text-[#b91c1c] transition-colors hover:bg-red-50"><TrashIcon /><span>Excluir Pedido</span></button>
