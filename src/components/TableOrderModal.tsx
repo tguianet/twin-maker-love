@@ -3,6 +3,9 @@ import { ProductLocatorModal, type OrderProduct } from "./ProductLocatorModal";
 
 type SelectedTable = { number: string; occupied: boolean };
 type OrderItem = OrderProduct & { quantity: number };
+type TableStateMap = Record<string, boolean>;
+
+const TABLE_STATE_KEY = "tguia-food-table-closing-state";
 
 const quickProducts: OrderProduct[] = [
   { category: "1 Cervejas", code: "2", name: "1 - Brahma 600ml", price: 9.9 },
@@ -18,6 +21,15 @@ const quickProducts: OrderProduct[] = [
 ];
 
 const money = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function readTableStates(): TableStateMap {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(TABLE_STATE_KEY) ?? "{}") as TableStateMap;
+  } catch {
+    return {};
+  }
+}
 
 function BasketIcon() {
   return (
@@ -42,6 +54,22 @@ export function TableOrderModal() {
   const [quickProduct, setQuickProduct] = useState<OrderProduct | null>(null);
   const [quickQuantity, setQuickQuantity] = useState(1);
   const [actionItemCode, setActionItemCode] = useState<string | null>(null);
+  const [tableStates, setTableStates] = useState<TableStateMap>(() => readTableStates());
+
+  const isBlocked = selectedTable ? Boolean(tableStates[selectedTable.number]) : false;
+
+  const toggleBlocked = () => {
+    if (!selectedTable) return;
+    const tableNumber = selectedTable.number;
+    setTableStates((current) => {
+      const next = { ...current, [tableNumber]: !current[tableNumber] };
+      window.localStorage.setItem(TABLE_STATE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new CustomEvent("tguia:table-state-change", {
+        detail: { tableNumber, blocked: Boolean(next[tableNumber]) },
+      }));
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -59,6 +87,7 @@ export function TableOrderModal() {
       setQuickProduct(null);
       setQuickQuantity(1);
       setActionItemCode(null);
+      setTableStates(readTableStates());
     };
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
@@ -75,14 +104,18 @@ export function TableOrderModal() {
           setQuickQuantity(1);
         } else setSelectedTable(null);
       }
-      if (event.key === "F3") {
+      if (event.key === "F3" && !isBlocked) {
         event.preventDefault();
         setProductsOpen(true);
+      }
+      if (event.key === "F8") {
+        event.preventDefault();
+        toggleBlocked();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTable, productsOpen, quickProduct, actionItemCode]);
+  }, [selectedTable, productsOpen, quickProduct, actionItemCode, isBlocked]);
 
   const orderNumber = useMemo(() => {
     if (!selectedTable) return "";
@@ -94,6 +127,7 @@ export function TableOrderModal() {
   const total = subtotal + service;
 
   const addProduct = (product: OrderProduct, quantity = 1) => {
+    if (isBlocked) return;
     setItems((current) => {
       const existing = current.find((item) => item.code === product.code);
       if (!existing) return [...current, { ...product, quantity }];
@@ -102,6 +136,7 @@ export function TableOrderModal() {
   };
 
   const updateQuantity = (code: string, delta: number) => {
+    if (isBlocked) return;
     setItems((current) =>
       current
         .map((item) => item.code === code ? { ...item, quantity: item.quantity + delta } : item)
@@ -110,11 +145,13 @@ export function TableOrderModal() {
   };
 
   const removeItem = (code: string) => {
+    if (isBlocked) return;
     setItems((current) => current.filter((item) => item.code !== code));
     setActionItemCode(null);
   };
 
   const duplicateItem = (code: string) => {
+    if (isBlocked) return;
     const found = items.find((item) => item.code === code);
     if (found) addProduct(found, found.quantity);
     setActionItemCode(null);
@@ -127,7 +164,7 @@ export function TableOrderModal() {
   };
 
   const confirmQuickAdd = () => {
-    if (!quickProduct) return;
+    if (!quickProduct || isBlocked) return;
     addProduct(quickProduct, quickQuantity);
     setQuickProduct(null);
     setQuickQuery("");
@@ -137,6 +174,7 @@ export function TableOrderModal() {
   if (!selectedTable) return null;
   const tableLabel = String(Number(selectedTable.number));
   const actionItem = items.find((item) => item.code === actionItemCode) ?? null;
+  const statusColor = isBlocked ? "#e59b13" : "#32965d";
 
   return (
     <>
@@ -149,15 +187,18 @@ export function TableOrderModal() {
 
           <div className="relative flex h-[68px] shrink-0 items-center border-b border-[#d4d4d4] px-4">
             <div className="flex w-[265px] items-center">
-              <div className="mr-4 text-[29px] font-bold text-[#32965d]">{selectedTable.number}</div>
-              <div><div className="mb-1">Pedido <strong>#{orderNumber}</strong> <span className="ml-2 bg-[#32965d] px-2 py-1 text-white">Em Aberto</span></div><div>Iniciado em 28-08 às <strong>01:25</strong></div></div>
+              <div className="mr-4 text-[29px] font-bold" style={{ color: statusColor }}>{selectedTable.number}</div>
+              <div>
+                <div className="mb-1">Pedido <strong>#{orderNumber}</strong> <span className="ml-2 px-2 py-1 text-white" style={{ backgroundColor: statusColor }}>{isBlocked ? "Em Fechamento" : "Em Aberto"}</span></div>
+                <div>Iniciado em 28-08 às <strong>01:25</strong></div>
+              </div>
             </div>
             <div className="flex flex-1 justify-end gap-3">
-              <input value={quickQuery} onChange={(e) => { const v = e.target.value; setQuickQuery(v); setQuickProduct(findQuickProduct(v)); setQuickQuantity(1); }} className="h-8 w-[150px] border border-[#c7cbd0] px-3" placeholder="Buscar Produto..." />
-              <button onClick={() => setProductsOpen(true)} className="flex items-center gap-1 font-bold text-black"><span className="text-[#087cf0]"><BasketIcon /></span>Produtos <span className="font-normal">(F3)</span></button>
+              <input disabled={isBlocked} value={quickQuery} onChange={(e) => { const v = e.target.value; setQuickQuery(v); setQuickProduct(findQuickProduct(v)); setQuickQuantity(1); }} className="h-8 w-[150px] border border-[#c7cbd0] px-3 disabled:bg-gray-100 disabled:text-gray-400" placeholder="Buscar Produto..." />
+              <button disabled={isBlocked} onClick={() => setProductsOpen(true)} className="flex items-center gap-1 font-bold text-black disabled:cursor-not-allowed disabled:opacity-40"><span className="text-[#087cf0]"><BasketIcon /></span>Produtos <span className="font-normal">(F3)</span></button>
             </div>
 
-            {quickProduct && (
+            {quickProduct && !isBlocked && (
               <div className="absolute right-[30px] top-[55px] z-[130] w-[285px] rounded-sm border border-gray-300 bg-white shadow-[0_4px_15px_rgba(0,0,0,.2)]">
                 <div className="flex justify-end p-[2px]"><button onClick={() => { setQuickProduct(null); setQuickQuery(""); setQuickQuantity(1); }} className="flex h-5 w-5 items-center justify-center rounded-sm bg-[#d9534f] text-white">×</button></div>
                 <div className="flex flex-col items-center px-5 pb-5 pt-3">
@@ -171,7 +212,17 @@ export function TableOrderModal() {
 
           <div className="flex min-h-0 flex-1">
             <aside className="flex w-[220px] shrink-0 flex-col border-r border-[#d4d4d4] bg-[#ececec]">
-              <div className="p-3"><div className="mb-1">Criado por: <strong>Tiago Gonçalves</strong></div><select className="mb-2 w-full border border-[#abadb3] bg-white px-2 py-1.5"><option>Tiago Gonçalves</option></select><textarea className="h-[58px] w-full resize-none border border-[#abadb3] p-2" placeholder="Anotar observação..." /><h3 className="mt-3 font-bold">Informações do Pedido</h3><div className="mt-3">Código Personalizado: <strong>{29636 + Number(selectedTable.number)}</strong></div><label className="mt-4 flex items-center gap-2"><input type="checkbox" />Bloquear Pedido (F8)</label></div>
+              <div className="p-3">
+                <div className="mb-1">Criado por: <strong>Tiago Gonçalves</strong></div>
+                <select className="mb-2 w-full border border-[#abadb3] bg-white px-2 py-1.5"><option>Tiago Gonçalves</option></select>
+                <textarea className="h-[58px] w-full resize-none border border-[#abadb3] p-2" placeholder="Anotar observação..." />
+                <h3 className="mt-3 font-bold">Informações do Pedido</h3>
+                <div className="mt-3">Código Personalizado: <strong>{29636 + Number(selectedTable.number)}</strong></div>
+                <label className="mt-4 flex cursor-pointer items-center gap-2">
+                  <input type="checkbox" checked={isBlocked} onChange={toggleBlocked} />
+                  {isBlocked ? "Desbloquear Pedido (F8)" : "Bloquear Pedido (F8)"}
+                </label>
+              </div>
               <div className="mt-auto p-3"><button className="mb-4 block font-bold text-[#0078d7]">Vincular Cliente (F11)</button><button className="block font-bold text-[#0078d7]">Mais Opções (F12)</button></div>
               <div className="border-t border-[#d4d4d4] p-4"><button onClick={() => setSelectedTable(null)} className="font-bold text-[#0078d7]">‹ Voltar (ESC)</button></div>
             </aside>
@@ -189,7 +240,7 @@ export function TableOrderModal() {
                         <span className="bg-[#e5e5e5] text-center font-bold">{item.quantity}</span>
                         <strong className="truncate">{item.name}</strong>
                         <strong className="text-right text-[14px]">{money.format(item.price * item.quantity)}</strong>
-                        <button onClick={() => setActionItemCode(item.code)} className="text-right text-[22px] leading-none text-black">⋮</button>
+                        <button disabled={isBlocked} onClick={() => setActionItemCode(item.code)} className="text-right text-[22px] leading-none text-black disabled:opacity-30">⋮</button>
                       </div>
                     ))}
                     <div className="border-b border-gray-100 py-2 text-[14px] font-bold"><div className="grid grid-cols-[1fr_120px] px-20"><span>SUBTOTAL:</span><span className="text-right">{money.format(subtotal)}</span></div></div>
@@ -201,7 +252,7 @@ export function TableOrderModal() {
 
               <div className="flex h-[60px] items-center justify-between border-t border-[#d4d4d4] px-6"><button className="font-bold text-[#0078d7]">▧ Imprimir (F9)</button><button disabled={items.length === 0} className={`px-4 py-3 font-bold ${items.length ? "bg-[#444] text-white" : "text-gray-400"}`}>▱ PAGAMENTO (F5)</button></div>
 
-              {actionItem && (
+              {actionItem && !isBlocked && (
                 <div className="absolute inset-0 z-[150] flex items-center justify-center bg-white/70">
                   <div className="w-[332px] border border-[#d1d5db] bg-white p-5 shadow-[0_8px_28px_rgba(0,0,0,.24)]">
                     <div className="flex flex-col gap-3">
