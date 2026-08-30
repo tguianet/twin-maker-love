@@ -1,26 +1,26 @@
 import { useEffect, useState } from "react";
 
 type ModalPosition = { left: number; top: number };
-
+type ReceiptMode = "summary" | "consumption";
 type ConsumptionReceiptEvent = CustomEvent<{ tableNumber?: string }>;
 
 function PrintIcon() {
   return (
     <svg className="h-5 w-5 text-[#5599ff]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
 export function ReceiptPreviewModal() {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<ReceiptMode>("summary");
   const [tableNumber, setTableNumber] = useState("2");
   const [position, setPosition] = useState<ModalPosition>({ left: 420, top: 28 });
 
   const syncPosition = () => {
     const tableDialog = document.querySelector<HTMLElement>('[aria-label^="Mesa/Comanda"]');
     if (!tableDialog) return;
-
     const rect = tableDialog.getBoundingClientRect();
     const modalWidth = 420;
     const modalHeight = Math.min(720, window.innerHeight - 24);
@@ -28,7 +28,6 @@ export function ReceiptPreviewModal() {
     const maxLeft = window.innerWidth - modalWidth - 12;
     const preferredTop = Math.max(12, rect.top - 22);
     const maxTop = Math.max(12, window.innerHeight - modalHeight - 12);
-
     setPosition({
       left: Math.max(12, Math.min(preferredLeft, maxLeft)),
       top: Math.min(preferredTop, maxTop),
@@ -42,7 +41,8 @@ export function ReceiptPreviewModal() {
     if (match?.[1]) setTableNumber(match[1]);
   };
 
-  const showReceipt = (forcedTableNumber?: string) => {
+  const showReceipt = (receiptMode: ReceiptMode, forcedTableNumber?: string) => {
+    setMode(receiptMode);
     if (forcedTableNumber) setTableNumber(forcedTableNumber);
     else resolveCurrentTable();
     syncPosition();
@@ -56,15 +56,14 @@ export function ReceiptPreviewModal() {
       if (!button) return;
       const label = button.textContent?.replace(/\s+/g, " ").trim() ?? "";
       if (!label.includes("Visualizar Conta Resumida")) return;
-
       event.preventDefault();
       event.stopPropagation();
-      showReceipt();
+      showReceipt("summary");
     };
 
     const handleConsumptionReceipt = (event: Event) => {
       const customEvent = event as ConsumptionReceiptEvent;
-      showReceipt(customEvent.detail?.tableNumber);
+      showReceipt("consumption", customEvent.detail?.tableNumber);
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -108,45 +107,57 @@ export function ReceiptPreviewModal() {
           Nenhuma impressora foi selecionada. Para ativar a impressão automática,<br />acesse: 'Configurações &gt; Impressora'.
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-white p-4 pb-0 font-mono text-xs text-gray-800">
-          <div className="mb-4 border-t border-dashed border-[#333]" />
-
-          <div className="mb-6 text-center leading-tight">
-            <div className="mb-1">1 Cervejas</div>
-            <div className="mb-1">Vale 1</div>
-            <div className="mb-1">1 - BRAHMA 600ML</div>
-            <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
+        {mode === "consumption" ? (
+          <div className="flex-1 overflow-y-auto bg-white p-4 pb-0 font-mono text-xs text-gray-800">
+            <div className="mb-4 border-t border-dashed border-[#333]" />
+            <div className="mb-6 text-center leading-tight">
+              <div className="mb-1">1 Cervejas</div>
+              <div className="mb-1">Vale 1</div>
+              <div className="mb-1">1 - BRAHMA 600ML</div>
+              <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
+            </div>
+            <div className="my-4 border-t border-dashed border-[#333]" />
+            <div className="mb-6 text-center leading-tight">
+              <div className="mb-1">1 Cervejas</div>
+              <div className="mb-1">Vale 1</div>
+              <div className="mb-1">1 - BRAHMA 600ML</div>
+              <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
+            </div>
+            <div className="my-4 border-t border-dashed border-[#333]" />
+            <div className="mb-6 text-center leading-tight">
+              <div className="mb-1">1 Cervejas</div>
+              <div className="mb-1">Vale 1</div>
+              <div className="mb-1">HEINEKEN ZERO</div>
+              <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
+            </div>
+            <div className="my-4 border-t border-dashed border-[#333]" />
+            <div className="mb-6 text-center leading-tight">
+              <div className="mb-1">4 File Mignon</div>
+              <div className="mb-1">Vale 1</div>
+              <div className="mb-1">FILE A CAVALO</div>
+              <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
+            </div>
           </div>
-
-          <div className="my-4 border-t border-dashed border-[#333]" />
-
-          <div className="mb-6 text-center leading-tight">
-            <div className="mb-1">1 Cervejas</div>
-            <div className="mb-1">Vale 1</div>
-            <div className="mb-1">1 - BRAHMA 600ML</div>
-            <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
+        ) : (
+          <div className="flex-1 overflow-y-auto bg-white p-5 font-mono text-xs leading-relaxed text-gray-800">
+            <div className="mb-4 text-center">Gerado por Consumer</div>
+            <div className="mb-4 text-center">------------------------------------</div>
+            <div className="text-center">IMPRESSO EM 29/08/2026 09:54:36</div>
+            <div className="text-center">SIMPLES CONFERENCIA DA CONTA</div>
+            <div className="text-center">RELATORIO GERENCIAL</div>
+            <div className="my-4 text-center">*** NAO E DOCUMENTO FISCAL ***</div>
+            <div className="mb-4">ABERTO EM 28/08/2026 01:25</div>
+            <div className="text-center">(Pedido N.: 29639)</div>
+            <div className="mb-3 text-center">COMANDA {tableNumber}</div>
+            <div className="mb-1 flex justify-between font-bold"><span>ITEM</span><span>Total</span></div>
+            <div className="mb-2 flex justify-between"><span>1 1 - Brahma 600ml</span><span>9,90</span></div>
+            <div className="mb-2">------------------------------------</div>
+            <div className="flex justify-between"><span>TOTAL:</span><span>9,90</span></div>
+            <div className="flex justify-between"><span>+ SERVICO:</span><span>0,99</span></div>
+            <div className="mt-1 flex justify-between font-bold"><span>= TOTAL A PAGAR:</span><span>10,89</span></div>
+            <div className="mt-4">Atendente: Tiago Gonçalves</div>
           </div>
-
-          <div className="my-4 border-t border-dashed border-[#333]" />
-
-          <div className="mb-6 text-center leading-tight">
-            <div className="mb-1">1 Cervejas</div>
-            <div className="mb-1">Vale 1</div>
-            <div className="mb-1">HEINEKEN ZERO</div>
-            <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
-          </div>
-
-          <div className="my-4 border-t border-dashed border-[#333]" />
-
-          <div className="mb-6 text-center leading-tight">
-            <div className="mb-1">4 File Mignon</div>
-            <div className="mb-1">Vale 1</div>
-            <div className="mb-1">FILE A CAVALO</div>
-            <div className="text-gray-600">[Ped.: 29588 30/08 00:05]</div>
-          </div>
-
-          <div className="mt-8 text-center text-gray-500">Comanda {tableNumber}</div>
-        </div>
+        )}
 
         <div className="mt-auto flex h-14 shrink-0 items-center justify-between border-t border-[#222] bg-[#3d3d3d] px-4">
           <button type="button" onClick={() => setOpen(false)} className="ml-20 flex items-center text-[#5599ff] transition-colors hover:text-white">
