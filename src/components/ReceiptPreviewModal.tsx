@@ -50,8 +50,8 @@ export function ReceiptPreviewModal() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-[#f0f0f0]/95 p-4">
-      <div className="relative flex h-[660px] w-[390px] max-h-[94vh] max-w-[96vw] flex-col overflow-hidden border border-gray-400 bg-[#dcdde1] font-[Inter,Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] shadow-[0_4px_6px_-1px_rgba(0,0,0,.1),0_2px_4px_-1px_rgba(0,0,0,.06),0_0_0_1px_rgba(0,0,0,.1)]">
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-transparent p-4 pointer-events-none">
+      <div className="pointer-events-auto relative flex h-[660px] w-[390px] max-h-[94vh] max-w-[96vw] flex-col overflow-hidden border border-gray-400 bg-[#dcdde1] font-[Inter,Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] shadow-[0_8px_24px_rgba(0,0,0,.28),0_0_0_1px_rgba(0,0,0,.1)]">
         <header className="flex h-8 shrink-0 select-none items-center justify-between border-b border-gray-400 bg-gradient-to-b from-[#e8e9ec] to-[#cfd0d5] px-2">
           <span className="text-sm font-medium text-[#1e293b]">Cupom</span>
           <button type="button" aria-label="Fechar" onClick={() => setOpen(false)} className="flex h-6 w-6 items-center justify-center rounded-sm text-gray-600 hover:bg-[#e81123] hover:text-white">×</button>
