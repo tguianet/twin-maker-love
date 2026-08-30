@@ -5,7 +5,7 @@ type ModalPosition = { left: number; top: number };
 function PrintIcon() {
   return (
     <svg className="h-5 w-5 text-[#5599ff]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 002 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -39,7 +39,9 @@ export function ReceiptPreviewModal() {
       const button = target?.closest("button");
       if (!button) return;
       const label = button.textContent?.replace(/\s+/g, " ").trim() ?? "";
-      if (!label.includes("Visualizar Conta Resumida")) return;
+      const isSummary = label.includes("Visualizar Conta Resumida");
+      const isConsumptionTicket = label.includes("Imprimir Fichas de Consumação") || label.includes("Imprimir Fichas de Consumacao");
+      if (!isSummary && !isConsumptionTicket) return;
 
       event.preventDefault();
       event.stopPropagation();
