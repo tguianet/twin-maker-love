@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { TableOrderModal } from "../components/TableOrderModal";
 import { OrderMoreOptionsModal } from "../components/OrderMoreOptionsModal";
 import { ReceiptPreviewModal } from "../components/ReceiptPreviewModal";
+import { TransferCopyItemsModal } from "../components/TransferCopyItemsModal";
 
 function NotFoundComponent() {
   return (
@@ -127,6 +128,7 @@ function RootComponent() {
       <TableOrderModal />
       <OrderMoreOptionsModal />
       <ReceiptPreviewModal />
+      <TransferCopyItemsModal />
     </QueryClientProvider>
   );
 }
