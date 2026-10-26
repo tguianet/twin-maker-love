@@ -156,12 +156,13 @@ export function TableOrderModal() {
   const total = subtotal + service;
 
   const addProduct = (product: OrderProduct, quantity = 1) => {
-    if (isBlocked) return;
+    if (isBlocked) return false;
     setItems((current) => {
       const existing = current.find((item) => item.code === product.code);
       if (!existing) return [...current, { ...product, quantity }];
       return current.map((item) => item.code === product.code ? { ...item, quantity: item.quantity + quantity } : item);
     });
+    return true;
   };
 
   const updateQuantity = (code: string, delta: number) => {
