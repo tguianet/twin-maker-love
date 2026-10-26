@@ -33,6 +33,8 @@ function SharedOrdersPage() {
   const [rpcAvailable, setRpcAvailable] = useState(false);
   const [message, setMessage] = useState("");
   const [changingStatus, setChangingStatus] = useState<string | null>(null);
+  const [settling, setSettling] = useState<string | null>(null);
+  const [payMethod, setPayMethod] = useState<Record<string,string>>({});
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -131,6 +133,22 @@ function SharedOrdersPage() {
       setError(err instanceof Error ? err.message : "Falha ao mudar o status.");
     } finally { setChangingStatus(null); }
   };
+  const settleOrder = async (order: Order) => {
+    if (!client || settling || order.status !== "closing") return;
+    const method = payMethod[order.id] || "cash";
+    const subtotal = order.order_items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unit_price), 0);
+    const total = Math.round(subtotal * (1 + serviceRate / 100) * 100) / 100;
+    if (total <= 0) { setError("Não é possível quitar uma comanda vazia."); return; }
+    if (!window.confirm("Confirma que recebeu " + money(total) + " e deseja fechar a comanda #" + order.order_number + "? Esta ação registra um recebimento manual.")) return;
+    setSettling(order.id); setError(""); setMessage("");
+    try {
+      const { error: failure } = await client.rpc("close_order_manual", { p_order_id: order.id, p_method: method });
+      if (failure) throw failure;
+      setMessage("Comanda #" + order.order_number + " quitada manualmente e fechada.");
+      await refresh();
+    } catch (err) { setError(err instanceof Error ? err.message : "Falha ao registrar o pagamento."); }
+    finally { setSettling(null); }
+  };
   const addItem = async (orderId: string) => {
     if (!client || addingTo || !org || !rpcAvailable) return;
     const productId = selection[orderId];
@@ -197,7 +215,7 @@ function SharedOrdersPage() {
               className="border border-[#a9bbc8] bg-[#e9eff5] px-3 py-2 text-sm font-semibold disabled:opacity-50">
               {changingStatus === order.id ? "Atualizando..." : order.status === "open" ? "Encaminhar ao caixa" : "Reabrir comanda"}
             </button>
-            {order.status === "closing" && <span className="text-xs text-amber-800">Aguardando pagamento no caixa. Não é baixa financeira.</span>}
+            {order.status === "closing" && <div className="flex flex-wrap items-center gap-2"><select aria-label={"Forma de recebimento da comanda " + order.order_number} className="border p-2 text-sm" value={payMethod[order.id] || "cash"} onChange={e => setPayMethod(prev => ({ ...prev, [order.id]: e.target.value }))}><option value="cash">Dinheiro</option><option value="pix">Pix recebido</option><option value="debit">Débito recebido</option><option value="credit">Crédito recebido</option></select><button type="button" disabled={settling !== null || changingStatus !== null} onClick={() => void settleOrder(order)} className="bg-[#315976] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{settling === order.id ? "Fechando..." : "Confirmar recebimento e fechar"}</button></div>}
           </div>
           {order.status === "open" && <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
             <select aria-label={"Produto do pedido " + order.order_number} className="min-w-[220px] flex-1 border p-2 text-sm" value={selection[order.id] || ""} onChange={e => setSelection(prev => ({ ...prev, [order.id]: e.target.value }))}>
