@@ -172,7 +172,7 @@ function SharedOrdersPage() {
   return <div className="min-h-screen bg-[#f3f6f9] text-[#273142]">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-[#e3eaf1] px-5 py-3">
       <div><strong>TGuia Food</strong><span className="ml-3 text-sm">Comandas compartilhadas</span></div>
-      <a href="/" className="border bg-white px-4 py-2 text-sm">Voltar às mesas</a>
+      <nav className="flex flex-wrap gap-2"><a href="/historico-online" className="border bg-white px-4 py-2 text-sm">Histórico do caixa</a><a href="/gestao" className="border bg-white px-4 py-2 text-sm">Gestão</a><a href="/" className="border bg-white px-4 py-2 text-sm">Voltar às mesas</a></nav>
     </header>
     <main className="mx-auto max-w-5xl p-5">
       <h1 className="mb-2 text-xl font-bold">Pedidos no Supabase</h1>
