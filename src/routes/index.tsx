@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { TableOrderModal } from "../components/TableOrderModal";
+import { CashRegisterModal } from "../components/CashRegisterModal";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -46,10 +47,10 @@ const icon = (path: string, className: string) => (
   </svg>
 );
 
-function RibbonButton({ width, children, svg, href }: { width: string; children: React.ReactNode; svg: React.ReactNode; href?: string }) {
+function RibbonButton({ width, children, svg, href, onClick }: { width: string; children: React.ReactNode; svg: React.ReactNode; href?: string; onClick?:()=>void }) {
   const className = `ribbon-button flex flex-col items-center justify-start rounded-sm border border-transparent p-1 ${width}`;
   if (href) return <a href={href} className={className}>{svg}<span className="leading-tight">{children}</span></a>;
-  return <button type="button" className={className}>{svg}<span className="leading-tight">{children}</span></button>;
+  return <button type="button" onClick={onClick} className={className}>{svg}<span className="leading-tight">{children}</span></button>;
 }
 
 function readTableStates(): Record<string, boolean> {
@@ -79,6 +80,7 @@ function Index() {
   const [tableNames, setTableNames] = useState<Record<string, string>>(() => readTableNames());
   const [ordersWithItems, setOrdersWithItems] = useState<Set<string>>(() => readOrdersWithItems());
   const [tableQuery, setTableQuery] = useState("");
+  const [cashOpen,setCashOpen] = useState(false);
   const [liveTables, setLiveTables] = useState<{id:string;number:number}[] | null>(null);
   const [liveOrders, setLiveOrders] = useState<{table_id:string|null;status:string;customer_name:string|null}[]>([]);
   const [liveError, setLiveError] = useState("");
@@ -238,7 +240,7 @@ function Index() {
       <nav className="flex h-[88px] items-stretch border-b border-app-border bg-app-ribbon text-center text-xs">
         <div className="relative flex min-w-[130px] items-stretch border-r border-app-border px-1 pb-1 pt-1">
           <div className="flex w-full justify-center space-x-1">
-            <RibbonButton href="/comandas-online" width="w-20" svg={icon("M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", "text-app-icon-blue")}>Caixa Online<br />Comandas</RibbonButton>
+            <RibbonButton onClick={() => setCashOpen(true)} width="w-20" svg={icon("M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", "text-app-icon-blue")}>Abrir / Fechar<br />Meu Caixa</RibbonButton>
             <RibbonButton href="/historico-online" width="w-20" svg={icon("M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", "text-app-icon-navy")}>Histórico<br />do Caixa</RibbonButton>
           </div>
           <div className="absolute bottom-0 left-0 w-full pb-0.5 text-center text-[10px] text-app-muted">Caixa</div>
@@ -347,6 +349,7 @@ function Index() {
         </section>
       </div>}
       {liveTables === null && <TableOrderModal />}
+      {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
       <footer className="relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
         <div className="flex items-center space-x-2"><div className="h-4 w-8 border border-app-border bg-app-field" /><span className="text-app-text">Exibir Total da Conta e Duração</span></div>
         <div className="absolute bottom-0 left-0 flex h-5 w-full items-center bg-app-status px-2 text-[11px]"><span className="text-app-text">{liveTables === null ? "Modo demonstração local — sem usuário de caixa autorizado" : "Mesas online: dados do restaurante autenticado"} <a className="text-app-blue underline" href="/gestao">Gestão / acesso</a></span></div>
