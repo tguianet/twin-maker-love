@@ -25,7 +25,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
   const active=(sessions||[]).find(x=>!x.closed_at)||null;
   setSession(active as Session|null);
   setPastSession(((sessions||[]).find(x=>!!x.closed_at)||null) as Session|null);
-  const shown=active || (showClosed ? (sessions||[]).find(x=>!!x.closed_at) : null);
+  const shown=showClosed ? ((sessions||[]).find(x=>!!x.closed_at)||null) : active;
   if(shown){
    const {data,error:me}=await supabase.from("cash_movements").select("id,created_at,description,direction,method,amount").eq("session_id",shown.id).order("created_at",{ascending:true});
    if(me)throw me;setRows((data||[]) as Movement[]);
@@ -72,7 +72,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
   const {data, error:e}=await supabase.from("cash_sessions").update({closed_at:new Date().toISOString(),closed_by:auth.user.id}).eq("id",session.id).is("closed_at",null).select("id").maybeSingle();
   if(e)throw e;if(!data)throw Error("Este caixa já foi fechado em outro terminal. Atualize os dados.");setNotice("Caixa fechado.");
  });
- const historicalView=showClosed && !session && !!pastSession;
+ const historicalView=showClosed && !!pastSession;
  const displayedSession=historicalView?pastSession:session;
  const cashIn=rows.filter(x=>x.direction==="in").reduce((a,x)=>a+Number(x.amount),0);
  const cashOut=rows.filter(x=>x.direction==="out").reduce((a,x)=>a+Number(x.amount),0);
@@ -85,11 +85,11 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
    <header className="flex h-[31px] shrink-0 items-center justify-between bg-[#444] px-3 text-[#ddd]"><span>Caixa · {operator||"TGuia Food"} {session?"· "+session.id.slice(0,8):""}</span><button onClick={onClose} aria-label="Fechar janela" className="px-2 text-lg text-white">×</button></header>
    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto p-4 md:grid-cols-[236px_minmax(340px,1fr)_310px]">
     <aside className="flex flex-col border-r border-[#ccc] pr-4">
-      <div className={"p-3 text-center font-bold text-white "+(session?"bg-[#38925c]":"bg-[#777]")}>{session?"Caixa Aberto":historicalView?"Turno encerrado":"Caixa Fechado"}</div>
+      <div className={"p-3 text-center font-bold text-white "+(session?"bg-[#38925c]":"bg-[#777]")}>{historicalView?"Turno encerrado":session?"Caixa Aberto":"Caixa Fechado"}</div>
       <label className="mt-6 text-[11px]">Saldo inicial (dinheiro):<input className={field+" mt-2 text-right"} disabled={!!displayedSession||busy} value={displayedSession?fmt(Number(displayedSession.opening_balance)):balance} onChange={e=>setBalance(e.target.value)}/></label>
       <label className="mt-4 text-[11px]">Observação:<textarea className={field+" mt-2 h-28 resize-none"} disabled={!!displayedSession||busy} value={displayedSession?displayedSession.opening_note||"":note} onChange={e=>setNote(e.target.value)}/></label>
       <div className="mt-auto pb-8"><b>Data / Hora de abertura:</b><p className="mt-2">{displayedSession?new Date(displayedSession.opened_at).toLocaleString("pt-BR"):"Não aberto"}</p></div>
-      {!session&&!historicalView&&<button disabled={!org||busy} onClick={open} className="bg-[#38925c] px-3 py-3 font-bold text-white disabled:opacity-40">Abrir Caixa</button>}
+      {!session&&!showClosed&&<button disabled={!org||busy} onClick={open} className="bg-[#38925c] px-3 py-3 font-bold text-white disabled:opacity-40">Abrir Caixa</button>}
     </aside>
     <div className="flex min-h-[370px] flex-col border border-[#b9b9b9] bg-white">
       <h2 className="bg-[#dedede] px-3 py-2 font-bold">Movimentação</h2>
@@ -101,7 +101,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
       </div>
       <div className="border-t border-[#ccc] bg-[#f8f8f8] px-3 py-2"><div className="flex justify-between font-semibold"><span>Recebimentos de comandas (consulta)</span><span>{fmt(orderReceiptsTotal)}</span></div><p className="mt-1 text-[10px] text-[#777]">Registros separados do livro-caixa. Não somados aos lançamentos manuais para evitar duplicidade.</p>{orderReceipts.map(p=><div key={p.id} className="mt-1 flex justify-between border-t border-[#e5e5e5] py-1"><span>{new Date(p.created_at).toLocaleString("pt-BR")} · {methods[p.method]||p.method}</span><strong>{fmt(p.amount)}</strong></div>)}</div>
       <div className="flex justify-end gap-12 border-t px-4 py-2 font-bold"><span>{fmt(cashIn)}</span><span>{fmt(cashOut)}</span></div>
-      <div className="flex justify-end gap-3 border-t bg-[#f5f5f5] p-2"><button className={button} disabled={!org||busy} onClick={refresh}>↻ Atualizar</button><button className={button} onClick={()=>window.print()}>▤ Imprimir</button><button className={button} disabled={!session||busy} onClick={()=>setAddOpen(true)}>＋ Novo Lançamento</button></div>
+      <div className="flex justify-end gap-3 border-t bg-[#f5f5f5] p-2"><button className={button} disabled={!org||busy} onClick={refresh}>↻ Atualizar</button><button className={button} onClick={()=>window.print()}>▤ Imprimir</button><button className={button} disabled={!session||busy||showClosed} onClick={()=>setAddOpen(true)}>＋ Novo Lançamento</button></div>
     </div>
     <aside className="flex min-h-[370px] flex-col border border-[#b9b9b9] bg-white">
       <h2 className="bg-[#dedede] px-3 py-2 font-bold">Resumo</h2>
@@ -109,7 +109,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
       <div><div className="mb-2"> (+) ENTRADAS NO CAIXA</div><b className="block text-right">{fmt(cashIn)}</b></div>
       <div><div className="mb-2">(-) SAÍDAS DO CAIXA</div><b className="block text-right">{fmt(cashOut)}</b></div>
       <div className="border-t pt-3"><b>RECEBIMENTOS DE COMANDAS</b><div className="mt-2 flex justify-between"><span>Dinheiro:</span><b>{fmt(orderCash)}</b></div><div className="mt-2 flex justify-between"><span>Pix / Cartões:</span><b>{fmt(orderDigital)}</b></div><div className="mt-2 flex justify-between font-bold"><span>Total registrado:</span><span>{fmt(orderReceiptsTotal)}</span></div><p className="mt-2 text-[10px] text-[#777]">Consulta separada das movimentações manuais. Não incluído no saldo final abaixo.</p></div><div className="border-t pt-4"><b>(=) SALDO FINAL</b><div className="mt-4 flex justify-between"><span>Somente Dinheiro:</span><b>{fmt(cashBalance)}</b></div><div className="mt-4 flex justify-between"><span>TUDO:</span><b>{fmt(Number(displayedSession?.opening_balance||0)+cashIn-cashOut)}</b></div></div></div>
-      <div className="mt-auto flex justify-end gap-2 border-t p-2"><button onClick={()=>window.print()} className={button}>▤ Imprimir</button><button onClick={close} disabled={!session||busy} className={button}>✓ Fechar Caixa</button></div>
+      <div className="mt-auto flex justify-end gap-2 border-t p-2"><button onClick={()=>window.print()} className={button}>▤ Imprimir</button><button onClick={close} disabled={!session||busy||showClosed} className={button}>✓ Fechar Caixa</button></div>
     </aside>
    </div>
    {(error||notice)&&<p role={error?"alert":"status"} className={"border-t px-4 py-2 "+(error?"text-red-700":"text-green-700")}>{error||notice}</p>}
