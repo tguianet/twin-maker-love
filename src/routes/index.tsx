@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { TableOrderModal } from "../components/TableOrderModal";
 import { CashRegisterModal } from "../components/CashRegisterModal";
 
@@ -86,6 +86,7 @@ function Index() {
   const [liveError, setLiveError] = useState("");
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveOrg, setLiveOrg] = useState("");
+  const [supabase,setSupabase] = useState<SupabaseClient|null>(null);
   const [selectedLiveTable, setSelectedLiveTable] = useState<{id:string;number:number}|null>(null);
   const [liveBusy, setLiveBusy] = useState(false);
   const [liveNotice, setLiveNotice] = useState("");
@@ -98,7 +99,9 @@ function Index() {
   useEffect(() => {
     let active = true;
     let refreshLive: (() => Promise<void>) | null = null;
-    void import("../lib/supabase").then(async ({ supabase }) => {
+    void import("../lib/supabase").then(async ({ supabase: browserClient }) => {
+      if (active) setSupabase(browserClient);
+      const supabase = browserClient;
       const refresh = async () => {
         const { data: auth } = await supabase.auth.getUser();
         if (!active) return;
@@ -146,7 +149,7 @@ function Index() {
   }, []);
 
   const openLiveTable = async (table:{id:string;number:number}) => {
-    if (!liveOrg) return;
+    if (!liveOrg || !supabase) return;
     setSelectedLiveTable(table); setLiveBusy(true); setLiveNotice("");
     try {
       const [orderResult,productResult,orgResult] = await Promise.all([
@@ -167,7 +170,7 @@ function Index() {
     finally { setLiveBusy(false); }
   };
   const saveLiveOrder = async () => {
-    if (!selectedLiveTable || !liveOrg || liveBusy) return;
+    if (!selectedLiveTable || !liveOrg || !supabase || liveBusy) return;
     setLiveBusy(true); setLiveNotice("");
     try {
       if (!liveOrder) {
@@ -186,7 +189,7 @@ function Index() {
     finally { setLiveBusy(false); }
   };
   const sendLiveOrderToCashier = async () => {
-    if (!liveOrder || !selectedLiveTable || !liveOrg || liveBusy || liveOrder.status !== "open") return;
+    if (!liveOrder || !selectedLiveTable || !liveOrg || !supabase || liveBusy || liveOrder.status !== "open") return;
     if (liveItems.length === 0) { setLiveNotice("Adicione um produto antes de encaminhar ao caixa."); return; }
     setLiveBusy(true); setLiveNotice("");
     try {
