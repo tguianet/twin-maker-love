@@ -71,6 +71,8 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
  const cashIn=rows.filter(x=>x.direction==="in").reduce((a,x)=>a+Number(x.amount),0);
  const cashOut=rows.filter(x=>x.direction==="out").reduce((a,x)=>a+Number(x.amount),0);
  const orderReceiptsTotal=orderReceipts.reduce((sum,r)=>sum+r.amount,0);
+ const orderCash=orderReceipts.filter(r=>r.method==="cash").reduce((sum,r)=>sum+r.amount,0);
+ const orderDigital=orderReceiptsTotal-orderCash;
  const cashBalance=Number(session?.opening_balance||0)+rows.filter(x=>x.method==="cash").reduce((a,x)=>a+(x.direction==="in"?1:-1)*Number(x.amount),0);
  return <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[#696969]/95 p-3 text-[#343434]">
   <section role="dialog" aria-modal="true" aria-label="Controle de caixa" className="flex h-[655px] max-h-[94vh] w-[1205px] max-w-[98vw] flex-col overflow-hidden bg-[#f4f4f4] font-[Segoe_UI,Tahoma,sans-serif] text-xs shadow-2xl">
@@ -100,7 +102,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
       <div className="space-y-5 p-3"><div className="flex justify-between"><span>(+) SALDO INICIAL:</span><b>{fmt(Number(session?.opening_balance||0))}</b></div>
       <div><div className="mb-2"> (+) ENTRADAS NO CAIXA</div><b className="block text-right">{fmt(cashIn)}</b></div>
       <div><div className="mb-2">(-) SAÍDAS DO CAIXA</div><b className="block text-right">{fmt(cashOut)}</b></div>
-      <div className="border-t pt-4"><b>(=) SALDO FINAL</b><div className="mt-4 flex justify-between"><span>Somente Dinheiro:</span><b>{fmt(cashBalance)}</b></div><div className="mt-4 flex justify-between"><span>TUDO:</span><b>{fmt(Number(session?.opening_balance||0)+cashIn-cashOut)}</b></div></div></div>
+      <div className="border-t pt-3"><b>RECEBIMENTOS DE COMANDAS</b><div className="mt-2 flex justify-between"><span>Dinheiro:</span><b>{fmt(orderCash)}</b></div><div className="mt-2 flex justify-between"><span>Pix / Cartões:</span><b>{fmt(orderDigital)}</b></div><div className="mt-2 flex justify-between font-bold"><span>Total registrado:</span><span>{fmt(orderReceiptsTotal)}</span></div><p className="mt-2 text-[10px] text-[#777]">Consulta separada das movimentações manuais. Não incluído no saldo final abaixo.</p></div><div className="border-t pt-4"><b>(=) SALDO FINAL</b><div className="mt-4 flex justify-between"><span>Somente Dinheiro:</span><b>{fmt(cashBalance)}</b></div><div className="mt-4 flex justify-between"><span>TUDO:</span><b>{fmt(Number(session?.opening_balance||0)+cashIn-cashOut)}</b></div></div></div>
       <div className="mt-auto flex justify-end gap-2 border-t p-2"><button onClick={()=>window.print()} className={button}>▤ Imprimir</button><button onClick={close} disabled={!session||busy} className={button}>✓ Fechar Caixa</button></div>
     </aside>
    </div>
