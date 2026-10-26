@@ -92,7 +92,7 @@ function Index() {
         const { data: memberships, error: memberError } = await supabase.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("active", true).limit(1);
         if (memberError) throw memberError;
         const orgId = memberships?.[0]?.organization_id;
-        if (!orgId) { setLiveError("Conta sem restaurante vinculado. Acesse Gestão."); setLiveTables([]); setLiveLoading(false); return; }
+        if (!orgId) { setLiveError("Conta sem restaurante vinculado. Acesse Gestão."); setLiveTables(null); setLiveLoading(false); return; }
         const [tablesResult, ordersResult] = await Promise.all([
           supabase.from("restaurant_tables").select("id,number").eq("organization_id",orgId).eq("active",true).order("number"),
           supabase.from("orders").select("table_id,status,customer_name").eq("organization_id",orgId).in("status",["open","closing"]),
@@ -205,7 +205,8 @@ function Index() {
       </div>
 
       <main className="app-scrollbar-hide flex flex-1 flex-col overflow-y-auto bg-background p-6">
-        {liveLoading ? <p className="mb-3 text-sm">Verificando mesas online...</p> : liveTables !== null ?
+        {liveLoading && <p className="mb-3 text-sm">Verificando mesas online...</p>}
+        {!liveLoading && liveTables !== null ?
           <div>
             {liveError && <p role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3 text-sm">{liveError}</p>}
             <h1 className="mb-4 text-sm font-bold">Mesas do restaurante · Supabase</h1>
@@ -221,7 +222,8 @@ function Index() {
             </div>
             {!liveTables.length && !liveError && <p className="text-sm">Nenhuma mesa cadastrada. Acesse Gestão para cadastrar.</p>}
           </div> :
-          <div className="mb-3 border border-amber-300 bg-amber-50 p-3 text-xs">Modo de demonstração local. Mesas e pedidos abaixo não representam o caixa real. <a href="/gestao" className="underline">Entrar na Gestão</a></div>}
+          <div className="mb-3 border border-amber-300 bg-amber-50 p-3 text-xs">{liveError || "Modo de demonstração local."} As mesas abaixo são da interface original e não representam comandas reais no Supabase. <a href="/gestao" className="underline">Acessar Gestão</a></div>}
+
         {liveTables === null && <>
 
         <section className="mb-6">
