@@ -25,6 +25,17 @@ export const Route = createFileRoute("/")({
 
 const TABLE_STATE_KEY = "tguia-food-table-closing-state";
 const TABLE_NAME_KEY = "tguia-food-table-names";
+const TABLE_ORDERS_KEY = "tguia-food-orders-v1";
+
+function readOrdersWithItems(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const saved: unknown = JSON.parse(window.localStorage.getItem(TABLE_ORDERS_KEY) || "{}");
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return new Set();
+    return new Set(Object.entries(saved).filter(([, items]) => Array.isArray(items) && items.some(item => item && typeof item === "object" && "quantity" in item && typeof item.quantity === "number" && item.quantity > 0)).map(([number]) => number));
+  } catch { return new Set(); }
+}
+
 const allFreeTables = Array.from({ length: 85 }, (_, i) => String(i + 2).padStart(2, "0"));
 
 const icon = (path: string, className: string) => (
@@ -67,33 +78,38 @@ function readTableNames(): Record<string, string> {
 function Index() {
   const [tableStates, setTableStates] = useState<Record<string, boolean>>(() => readTableStates());
   const [tableNames, setTableNames] = useState<Record<string, string>>(() => readTableNames());
+  const [ordersWithItems, setOrdersWithItems] = useState<Set<string>>(() => readOrdersWithItems());
 
   useEffect(() => {
     const refresh = () => {
       setTableStates(readTableStates());
       setTableNames(readTableNames());
+      setOrdersWithItems(readOrdersWithItems());
     };
     window.addEventListener("tguia:table-state-change", refresh as EventListener);
     window.addEventListener("tguia:table-name-change", refresh as EventListener);
     window.addEventListener("storage", refresh);
+    window.addEventListener("tguia:orders-change", refresh);
     return () => {
       window.removeEventListener("tguia:table-state-change", refresh as EventListener);
       window.removeEventListener("tguia:table-name-change", refresh as EventListener);
       window.removeEventListener("storage", refresh);
+      window.removeEventListener("tguia:orders-change", refresh);
     };
   }, []);
 
   const closingTables = useMemo(
-    () => allFreeTables.filter((table) => Boolean(tableStates[table])),
-    [tableStates],
+    () => allFreeTables.filter((table) => Boolean(tableStates[table]) || ordersWithItems.has(table)),
+    [tableStates, ordersWithItems],
   );
 
   const freeTables = useMemo(
-    () => allFreeTables.filter((table) => !tableStates[table]),
+    () => allFreeTables.filter((table) => !tableStates[table] && !ordersWithItems.has(table)),
     [tableStates],
   );
 
   const table01Blocked = Boolean(tableStates["01"]);
+  const table01HasOrder = ordersWithItems.has("01");
   const ongoingCount = 1 + closingTables.length;
 
   return (
@@ -155,7 +171,7 @@ function Index() {
           <div className="flex flex-wrap gap-4">
             <div
               className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center transition-colors"
-              style={{ backgroundColor: table01Blocked ? "#e5ad1d" : undefined }}
+              style={{ backgroundColor: table01Blocked ? "#e5ad1d" : table01HasOrder ? "#32965d" : undefined }}
               title={`Mesa 01 - ${tableNames["01"] || "marcos"}`}
             >
               <span className="text-3xl font-bold text-white">01</span>
