@@ -6,6 +6,13 @@ type OrderItem = OrderProduct & { quantity: number };
 type TableStateMap = Record<string, boolean>;
 
 const TABLE_STATE_KEY = "tguia-food-table-closing-state";
+const TABLE_ORDERS_KEY = "tguia-food-orders-v1";
+function getSavedItems(table: string): OrderItem[] {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TABLE_ORDERS_KEY) || "{}");
+    return Array.isArray(saved[table]) ? saved[table] : [];
+  } catch { return []; }
+}
 
 const quickProducts: OrderProduct[] = [
   { category: "1 Cervejas", code: "2", name: "1 - Brahma 600ml", price: 9.9 },
@@ -81,7 +88,7 @@ export function TableOrderModal() {
         .find((text) => /^\d{1,3}$/.test(text));
       if (!number) return;
       setSelectedTable({ number: number.padStart(2, "0"), occupied: table.classList.contains("table-box-active") });
-      setItems([]);
+      setItems(getSavedItems(number.padStart(2, "0")));
       setProductsOpen(false);
       setQuickQuery("");
       setQuickProduct(null);
@@ -116,6 +123,13 @@ export function TableOrderModal() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedTable, productsOpen, quickProduct, actionItemCode, isBlocked]);
+
+  useEffect(() => {
+    if (!selectedTable) return;
+    const saved = JSON.parse(localStorage.getItem(TABLE_ORDERS_KEY) || "{}");
+    saved[selectedTable.number] = items;
+    localStorage.setItem(TABLE_ORDERS_KEY, JSON.stringify(saved));
+  }, [selectedTable, items]);
 
   const orderNumber = useMemo(() => {
     if (!selectedTable) return "";
