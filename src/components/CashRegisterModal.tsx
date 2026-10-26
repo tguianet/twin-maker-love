@@ -11,6 +11,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
  const [org,setOrg]=useState("");const [operator,setOperator]=useState("");
  const [session,setSession]=useState<Session|null>(null);
  const [rows,setRows]=useState<Movement[]>([]);
+ const [orderReceipts,setOrderReceipts]=useState<{id:string;created_at:string;method:string;amount:number}[]>([]);
  const [balance,setBalance]=useState("0,00");const [note,setNote]=useState("");
  const [description,setDescription]=useState("");const [amount,setAmount]=useState("");
  const [direction,setDirection]=useState<"in"|"out">("in");const [method,setMethod]=useState("cash");
@@ -26,6 +27,14 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
    const {data,error:me}=await supabase.from("cash_movements").select("id,created_at,description,direction,method,amount").eq("session_id",active.id).order("created_at",{ascending:true});
    if(me)throw me;setRows((data||[]) as Movement[]);
   } else {setRows([]);}
+  if(active){
+   const {data:receipts,error:receiptsError}=await supabase.from("order_payments")
+    .select("id,created_at,method,amount,orders!inner(organization_id)")
+    .eq("orders.organization_id",organization)
+    .gte("created_at",active.opened_at).order("created_at",{ascending:true});
+   if(receiptsError)throw receiptsError;
+   setOrderReceipts((receipts||[]).map(p=>({id:p.id,created_at:p.created_at,method:p.method,amount:Number(p.amount)})));
+  } else setOrderReceipts([]);
  };
  useEffect(()=>{let mounted=true;void (async()=>{try{
   const {data:auth,error:e}=await supabase.auth.getUser();if(e)throw e;
@@ -61,6 +70,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
  });
  const cashIn=rows.filter(x=>x.direction==="in").reduce((a,x)=>a+Number(x.amount),0);
  const cashOut=rows.filter(x=>x.direction==="out").reduce((a,x)=>a+Number(x.amount),0);
+ const orderReceiptsTotal=orderReceipts.reduce((sum,r)=>sum+r.amount,0);
  const cashBalance=Number(session?.opening_balance||0)+rows.filter(x=>x.method==="cash").reduce((a,x)=>a+(x.direction==="in"?1:-1)*Number(x.amount),0);
  return <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[#696969]/95 p-3 text-[#343434]">
   <section role="dialog" aria-modal="true" aria-label="Controle de caixa" className="flex h-[655px] max-h-[94vh] w-[1205px] max-w-[98vw] flex-col overflow-hidden bg-[#f4f4f4] font-[Segoe_UI,Tahoma,sans-serif] text-xs shadow-2xl">
@@ -81,6 +91,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
        <tbody>{session&&<tr className="border-b"><td className="p-2">{new Date(session.opened_at).toLocaleString("pt-BR")}</td><td className="p-2">SALDO INICIAL</td><td className="p-2 text-right text-blue-600">{fmt(Number(session.opening_balance))}</td><td/><td className="p-2">Dinheiro</td></tr>}
        {rows.map(r=><tr key={r.id} className="border-b"><td className="whitespace-nowrap p-2">{new Date(r.created_at).toLocaleString("pt-BR")}</td><td className="p-2">{r.description}</td><td className="p-2 text-right">{r.direction==="in"?fmt(Number(r.amount)):""}</td><td className="p-2 text-right">{r.direction==="out"?fmt(Number(r.amount)):""}</td><td className="p-2">{methods[r.method]||r.method}</td></tr>)}</tbody></table>
       </div>
+      <div className="border-t border-[#ccc] bg-[#f8f8f8] px-3 py-2"><div className="flex justify-between font-semibold"><span>Recebimentos de comandas (consulta)</span><span>{fmt(orderReceiptsTotal)}</span></div><p className="mt-1 text-[10px] text-[#777]">Registros separados do livro-caixa. Não somados aos lançamentos manuais para evitar duplicidade.</p>{orderReceipts.map(p=><div key={p.id} className="mt-1 flex justify-between border-t border-[#e5e5e5] py-1"><span>{new Date(p.created_at).toLocaleString("pt-BR")} · {methods[p.method]||p.method}</span><strong>{fmt(p.amount)}</strong></div>)}</div>
       <div className="flex justify-end gap-12 border-t px-4 py-2 font-bold"><span>{fmt(cashIn)}</span><span>{fmt(cashOut)}</span></div>
       <div className="flex justify-end gap-3 border-t bg-[#f5f5f5] p-2"><button className={button} disabled={!org||busy} onClick={refresh}>↻ Atualizar</button><button className={button} onClick={()=>window.print()}>▤ Imprimir</button><button className={button} disabled={!session||busy} onClick={()=>setAddOpen(true)}>＋ Novo Lançamento</button></div>
     </div>
