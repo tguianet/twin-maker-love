@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 import { TableOrderModal } from "../components/TableOrderModal";
 
 export const Route = createFileRoute("/")({
@@ -82,6 +83,16 @@ function Index() {
   const [liveOrders, setLiveOrders] = useState<{table_id:string|null;status:string;customer_name:string|null}[]>([]);
   const [liveError, setLiveError] = useState("");
   const [liveLoading, setLiveLoading] = useState(true);
+  const [liveOrg, setLiveOrg] = useState("");
+  const [selectedLiveTable, setSelectedLiveTable] = useState<{id:string;number:number}|null>(null);
+  const [liveBusy, setLiveBusy] = useState(false);
+  const [liveNotice, setLiveNotice] = useState("");
+  const [liveProducts, setLiveProducts] = useState<{id:string;name:string;sale_price:number}[]>([]);
+  const [liveSelectedProduct, setLiveSelectedProduct] = useState("");
+  const [liveQty, setLiveQty] = useState(1);
+  const [liveOrder, setLiveOrder] = useState<{id:string;status:string;order_number:number}|null>(null);
+  const [liveItems, setLiveItems] = useState<{id:string;product_name:string;quantity:number;unit_price:number}[]>([]);
+  const [liveRate, setLiveRate] = useState(0);
   useEffect(() => {
     let active = true;
     let refreshLive: (() => Promise<void>) | null = null;
@@ -93,6 +104,7 @@ function Index() {
         const { data: memberships, error: memberError } = await supabase.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("active", true).limit(1);
         if (memberError) throw memberError;
         const orgId = memberships?.[0]?.organization_id;
+        if (orgId) setLiveOrg(orgId);
         if (!orgId) { setLiveError("Conta sem restaurante vinculado. Acesse Gestão."); setLiveTables(null); setLiveLoading(false); return; }
         const [tablesResult, ordersResult] = await Promise.all([
           supabase.from("restaurant_tables").select("id,number").eq("organization_id",orgId).eq("active",true).order("number"),
@@ -131,6 +143,42 @@ function Index() {
     };
   }, []);
 
+  const openLiveTable = async (table:{id:string;number:number}) => {
+    if (!liveOrg) return;
+    setSelectedLiveTable(table); setLiveBusy(true); setLiveNotice("");
+    try {
+      const [orderResult,productResult,orgResult] = await Promise.all([
+        supabase.from("orders").select("id,status,order_number,order_items(id,product_name,quantity,unit_price)").eq("organization_id",liveOrg).eq("table_id",table.id).in("status",["open","closing"]).maybeSingle(),
+        supabase.from("products").select("id,name,sale_price").eq("organization_id",liveOrg).eq("active",true).order("name"),
+        supabase.from("organizations").select("service_rate").eq("id",liveOrg).single(),
+      ]);
+      if (orderResult.error || productResult.error || orgResult.error) throw orderResult.error || productResult.error || orgResult.error;
+      setLiveOrder(orderResult.data ? {id:orderResult.data.id,status:orderResult.data.status,order_number:orderResult.data.order_number} : null);
+      setLiveItems(orderResult.data?.order_items || []);
+      setLiveProducts(productResult.data || []);
+      setLiveRate(Number(orgResult.data?.service_rate || 0));
+    } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Erro ao consultar mesa."); }
+    finally { setLiveBusy(false); }
+  };
+  const saveLiveOrder = async () => {
+    if (!selectedLiveTable || !liveOrg || liveBusy) return;
+    setLiveBusy(true); setLiveNotice("");
+    try {
+      if (!liveOrder) {
+        const {data:auth} = await supabase.auth.getUser();
+        if (!auth.user) throw Error("Faça login na Gestão.");
+        const {error} = await supabase.from("orders").insert({organization_id:liveOrg,table_id:selectedLiveTable.id,order_type:"table",status:"open",created_by:auth.user.id});
+        if (error) throw error;
+      } else {
+        if (liveOrder.status !== "open" || !liveSelectedProduct) throw Error("Selecione um produto para uma comanda aberta.");
+        const {error} = await supabase.rpc("add_order_product",{p_order_id:liveOrder.id,p_product_id:liveSelectedProduct,p_quantity:liveQty});
+        if (error) throw error;
+      }
+      await openLiveTable(selectedLiveTable);
+      setLiveNotice("Comanda atualizada no Supabase.");
+    } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Falha ao salvar pedido."); }
+    finally { setLiveBusy(false); }
+  };
   const closingTables = useMemo(
     () => allFreeTables.filter((table) => Boolean(tableStates[table]) || ordersWithItems.has(table)),
     [tableStates, ordersWithItems],
@@ -214,12 +262,12 @@ function Index() {
             <div className="mb-5 flex flex-wrap gap-3">
               {liveTables.filter(t => liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => {
                 const order = liveOrders.find(o => o.table_id === t.id);
-                return <a key={t.id} href={`/comandas-online?mesa=${t.id}`} className="table-box-active flex h-24 w-24 flex-col items-center justify-center text-white" style={{backgroundColor:order?.status === "closing" ? "#e5ad1d" : "#32965d"}}><span className="text-2xl font-bold">{t.number}</span><span className="text-xs">{order?.status === "closing" ? "No caixa" : "Ocupada"}</span></a>;
+                return <button type="button" key={t.id} onClick={() => void openLiveTable(t)} className="table-box-active flex h-24 w-24 flex-col items-center justify-center text-white" style={{backgroundColor:order?.status === "closing" ? "#e5ad1d" : "#32965d"}}><span className="text-2xl font-bold">{t.number}</span><span className="text-xs">{order?.status === "closing" ? "No caixa" : "Ocupada"}</span></button>;
               })}
             </div>
             <h2 className="mb-4 text-sm font-bold">Mesas livres</h2>
             <div className="app-grid">
-              {liveTables.filter(t => !liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => <a key={t.id} href={`/comandas-online?mesa=${t.id}`} className="table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark"><span className="text-[9px]">ABRIR</span><span className="mt-2 text-2xl font-bold">{t.number}</span></a>)}
+              {liveTables.filter(t => !liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => <button type="button" key={t.id} onClick={() => void openLiveTable(t)} className="table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark"><span className="text-[9px]">ABRIR</span><span className="mt-2 text-2xl font-bold">{t.number}</span></button>)}
             </div>
             {!liveTables.length && !liveError && <p className="text-sm">Nenhuma mesa cadastrada. Acesse Gestão para cadastrar.</p>}
           </div> :
@@ -267,6 +315,19 @@ function Index() {
         </>}
       </main>
 
+      {selectedLiveTable && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1f2c3b]/90 p-4">
+        <section role="dialog" aria-modal="true" aria-label={"Mesa " + selectedLiveTable.number} className="flex max-h-[92vh] w-[741px] max-w-[96vw] flex-col overflow-auto border border-[#999] bg-white font-[Segoe_UI,Tahoma,sans-serif] text-xs text-[#273142] shadow-2xl">
+          <div className="flex items-center justify-between border-b bg-[#e3eaf1] p-3"><strong>Mesa {selectedLiveTable.number} · {liveOrder ? "Comanda #" + liveOrder.order_number : "Livre"}</strong><button onClick={() => setSelectedLiveTable(null)} className="border bg-white px-3 py-1">Fechar ×</button></div>
+          <div className="space-y-3 p-4">
+            {liveNotice && <p role="status" className="border border-amber-300 bg-amber-50 p-2">{liveNotice}</p>}
+            <h2 className="font-bold">Itens da comanda</h2>
+            <div className="min-h-32 border"><table className="w-full text-left"><thead className="bg-[#e9eff5]"><tr><th className="p-2">Produto</th><th className="p-2">Qtd.</th><th className="p-2">Valor</th></tr></thead><tbody>{liveItems.map(item=><tr key={item.id} className="border-t"><td className="p-2">{item.product_name}</td><td className="p-2">{item.quantity}</td><td className="p-2">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(item.quantity*item.unit_price)}</td></tr>)}</tbody></table></div>
+            <p className="text-right font-bold">Total com serviço ({liveRate}%): {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(liveItems.reduce((n,i)=>n+i.quantity*i.unit_price,0)*(1+liveRate/100))}</p>
+            {liveOrder?.status === "open" && <div className="flex gap-2"><select aria-label="Produto" className="min-w-0 flex-1 border p-2" value={liveSelectedProduct} onChange={e=>setLiveSelectedProduct(e.target.value)}><option value="">Selecionar produto</option>{liveProducts.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><input aria-label="Quantidade" type="number" min={1} max={100} className="w-16 border p-2" value={liveQty} onChange={e=>setLiveQty(Number(e.target.value))} /></div>}
+            <div className="flex justify-end gap-2 border-t pt-3"><a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border bg-[#e9eff5] px-4 py-2">Ir ao caixa</a>{(!liveOrder || liveOrder.status === "open") && <button disabled={liveBusy || (!!liveOrder && (!liveSelectedProduct || !Number.isInteger(liveQty) || liveQty<1 || liveQty>100))} onClick={() => void saveLiveOrder()} className="bg-[#315976] px-4 py-2 font-bold text-white disabled:opacity-50">{liveBusy ? "Salvando..." : liveOrder ? "Adicionar produto" : "Abrir comanda"}</button>}</div>
+          </div>
+        </section>
+      </div>}
       {liveTables === null && <TableOrderModal />}
       <footer className="relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
         <div className="flex items-center space-x-2"><div className="h-4 w-8 border border-app-border bg-app-field" /><span className="text-app-text">Exibir Total da Conta e Duração</span></div>
