@@ -29,6 +29,7 @@ function SharedOrdersPage() {
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [rpcAvailable, setRpcAvailable] = useState(false);
   const [message, setMessage] = useState("");
+  const [changingStatus, setChangingStatus] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -105,6 +106,25 @@ function SharedOrdersPage() {
       setError(err instanceof Error ? err.message : "Não foi possível abrir a comanda.");
     } finally { setSaving(false); }
   };
+  const changeOrderStatus = async (orderId: string, current: string) => {
+    if (!client || !org || changingStatus || !["open", "closing"].includes(current)) return;
+    const next = current === "open" ? "closing" : "open";
+    setChangingStatus(orderId); setError(""); setMessage("");
+    try {
+      const { data, error: failure } = await client.from("orders")
+        .update({ status: next })
+        .eq("id", orderId).eq("organization_id", org).eq("status", current)
+        .select("id").maybeSingle();
+      if (failure) throw failure;
+      if (!data) throw new Error("Comanda alterada por outro usuário. Atualize os dados.");
+      setMessage(next === "closing"
+        ? "Comanda encaminhada ao caixa. Nenhum pagamento foi registrado."
+        : "Comanda reaberta para lançamento de produtos.");
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao mudar o status.");
+    } finally { setChangingStatus(null); }
+  };
   const addItem = async (orderId: string) => {
     if (!client || addingTo || !org || !rpcAvailable) return;
     const productId = selection[orderId];
@@ -162,6 +182,13 @@ function SharedOrdersPage() {
           <div className="flex flex-wrap justify-between gap-3"><strong>Pedido #{order.order_number} {order.table_id ? "· Mesa " + (tables[order.table_id] || "?") : ""}</strong><span>{order.status === "closing" ? "Em fechamento" : "Aberto"} · {money(subtotal)} (sem taxa)</span></div>
           <p className="mt-1 text-sm text-slate-600">{order.customer_name || "Cliente não informado"} · {new Date(order.opened_at).toLocaleString("pt-BR")}</p>
           <ul className="mt-2 text-sm">{order.order_items.map(item => <li key={item.id}>{item.quantity}× {item.product_name} — {money(item.unit_price)}</li>)}</ul>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" disabled={changingStatus !== null || addingTo !== null} onClick={() => void changeOrderStatus(order.id, order.status)}
+              className="border border-[#a9bbc8] bg-[#e9eff5] px-3 py-2 text-sm font-semibold disabled:opacity-50">
+              {changingStatus === order.id ? "Atualizando..." : order.status === "open" ? "Encaminhar ao caixa" : "Reabrir comanda"}
+            </button>
+            {order.status === "closing" && <span className="text-xs text-amber-800">Aguardando pagamento no caixa. Não é baixa financeira.</span>}
+          </div>
           {order.status === "open" && <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
             <select aria-label={"Produto do pedido " + order.order_number} className="min-w-[220px] flex-1 border p-2 text-sm" value={selection[order.id] || ""} onChange={e => setSelection(prev => ({ ...prev, [order.id]: e.target.value }))}>
               <option value="">Selecione um produto</option>
