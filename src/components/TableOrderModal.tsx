@@ -212,11 +212,29 @@ export function TableOrderModal() {
         closedAt: new Date().toISOString(),
         mode: "local-demo",
       });
-      localStorage.setItem(archiveKey, JSON.stringify(archive.slice(0, 500)));
+      const previousArchive = localStorage.getItem(archiveKey);
+      const previousOrders = localStorage.getItem(TABLE_ORDERS_KEY);
+      const previousStates = localStorage.getItem(TABLE_STATE_KEY);
       delete saved[selectedTable.number];
       delete states[selectedTable.number];
-      localStorage.setItem(TABLE_ORDERS_KEY, JSON.stringify(saved));
-      localStorage.setItem(TABLE_STATE_KEY, JSON.stringify(states));
+      try {
+        localStorage.setItem(archiveKey, JSON.stringify(archive.slice(0, 500)));
+        localStorage.setItem(TABLE_ORDERS_KEY, JSON.stringify(saved));
+        localStorage.setItem(TABLE_STATE_KEY, JSON.stringify(states));
+      } catch (writeError) {
+        // Restore the original records if any of the three writes fails.
+        for (const [key, value] of [
+          [archiveKey, previousArchive],
+          [TABLE_ORDERS_KEY, previousOrders],
+          [TABLE_STATE_KEY, previousStates],
+        ] as const) {
+          try {
+            if (value === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, value);
+          } catch (rollbackError) { console.error("Falha ao restaurar armazenamento local", rollbackError); }
+        }
+        throw writeError;
+      }
       window.dispatchEvent(new Event("tguia:orders-change"));
       window.dispatchEvent(new Event("tguia:table-state-change"));
       setItems([]);
