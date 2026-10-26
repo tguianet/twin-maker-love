@@ -34,7 +34,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
    const {data:receipts,error:receiptsError}=await supabase.from("order_payments")
     .select("id,created_at,method,amount,orders!inner(organization_id)")
     .eq("orders.organization_id",organization)
-    .gte("created_at",shown.opened_at).lte("created_at",shown.closed_at || new Date().toISOString()).order("created_at",{ascending:true});
+    .eq("cash_session_id",shown.id).order("created_at",{ascending:true});
    if(receiptsError)throw receiptsError;
    setOrderReceipts((receipts||[]).map(p=>({id:p.id,created_at:p.created_at,method:p.method,amount:Number(p.amount)})));
   } else setOrderReceipts([]);
