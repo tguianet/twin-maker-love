@@ -53,6 +53,13 @@ export function CustomerLinkModal({ table, onClose, onSaved }: {
       associate(customer);
     } catch { setError("Não foi possível gravar o cadastro no navegador."); }
   };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); onClose(); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
   const found = customers.filter(c => (c.name + " " + c.phone).toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")));
   return <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/55 p-4">
     <div role="dialog" aria-modal="true" aria-label="Vincular cliente" className="w-[580px] max-w-full border border-[#aaa] bg-white p-5 text-[#273142] shadow-xl">
