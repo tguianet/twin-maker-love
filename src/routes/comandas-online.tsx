@@ -207,17 +207,17 @@ function SharedOrdersPage() {
       {message && <p role="status" className="mb-3 border border-green-200 bg-green-50 p-3 text-sm">{message}</p>}
       {!!org && <section className="mb-5 rounded-sm border border-app-border bg-white p-4 shadow-sm">
         <h2 className="mb-2 text-sm font-bold">Abrir comanda</h2>
-        <p className="mb-3 text-xs text-slate-600">A mesa deve existir no cadastro do banco e não possuir outra comanda aberta. Esta ação grava uma comanda real, porém sem itens ou pagamentos.</p>
+        <p className="mb-3 text-xs text-app-muted">Selecione uma mesa livre. Mesas ocupadas já possuem comanda em andamento.</p>
         <div className="flex flex-wrap gap-2">
           <select aria-label="Mesa para nova comanda" className="min-w-[180px] flex-1 border p-2" value={selectedTableId} onChange={e => setSelectedTableId(e.target.value)}>
             <option value="">Selecione uma mesa</option>
-            {Object.entries(tables).sort((a,b) => a[1]-b[1]).map(([id,number]) => <option key={id} value={id}>Mesa {number}</option>)}
+            {Object.entries(tables).filter(([id]) => !orders.some(o => o.table_id === id)).sort((a,b) => a[1]-b[1]).map(([id,number]) => <option key={id} value={id}>Mesa {number}</option>)}
           </select>
           <input aria-label="Nome opcional do cliente" maxLength={120} className="min-w-[180px] flex-1 border p-2" placeholder="Nome do cliente (opcional)" value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} />
           <button type="button" disabled={saving || loading || !selectedTableId} onClick={() => void createOrder()} className="bg-app-blue px-4 py-2 font-semibold text-white disabled:opacity-50">{saving ? "Gravando..." : "Abrir comanda"}</button>
         </div>
       </section>}
-      {authReady && !!org && orders.length === 0 && !loading && !error && <p className="p-4 text-sm">Nenhuma comanda aberta encontrada.</p>}
+      {authReady && !!org && orders.length === 0 && !loading && !error && <p className="border border-app-border bg-white p-4 text-sm">Nenhuma comanda em andamento. Selecione uma mesa livre acima para iniciar o atendimento.</p>}
       <div className="mb-4 flex flex-wrap gap-3 border bg-white p-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={showClosingOnly} onChange={e => setShowClosingOnly(e.target.checked)} /> Somente aguardando caixa</label><input aria-label="Buscar comanda" className="min-w-[200px] flex-1 border p-2" placeholder="Buscar número, mesa ou cliente" value={orderSearch} onChange={e => setOrderSearch(e.target.value)} /><span className="self-center">{orders.filter(o => o.status === "closing").length} aguardando caixa</span></div>
       <div className="grid gap-3 xl:grid-cols-2">{orders.filter(order => (!showClosingOnly || order.status === "closing") && (!requestedTableId || order.table_id === requestedTableId) && (!orderSearch.trim() || [String(order.order_number), order.customer_name || "", order.table_id ? String(tables[order.table_id] || "") : ""].some(value => value.toLocaleLowerCase("pt-BR").includes(orderSearch.trim().toLocaleLowerCase("pt-BR"))))).map(order => {
         const subtotal = order.order_items.reduce((n, item) => n + item.quantity * item.unit_price, 0);
