@@ -106,7 +106,7 @@ export function TableOrderModal() {
   }, []);
 
   useEffect(() => {
-    if (!selectedTable || productsOpen) return;
+    if (!selectedTable || productsOpen || customerModalOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         if (actionItemCode) setActionItemCode(null);
@@ -115,6 +115,10 @@ export function TableOrderModal() {
           setQuickQuery("");
           setQuickQuantity(1);
         } else setSelectedTable(null);
+      }
+      if (event.key === "F11") {
+        event.preventDefault();
+        setCustomerModalOpen(true);
       }
       if (event.key === "F3" && !isBlocked) {
         event.preventDefault();
@@ -127,7 +131,7 @@ export function TableOrderModal() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTable, productsOpen, quickProduct, actionItemCode, isBlocked]);
+  }, [selectedTable, productsOpen, customerModalOpen, quickProduct, actionItemCode, isBlocked]);
 
   useEffect(() => {
     if (!selectedTable) return;
@@ -204,6 +208,7 @@ export function TableOrderModal() {
         table: selectedTable.number,
         items: items.map(item => ({ ...item })),
         subtotal, service, total, paymentMethod,
+        customer: customer ? { id: customer.id, name: customer.name } : null,
         closedAt: new Date().toISOString(),
         mode: "local-demo",
       });
