@@ -10,7 +10,7 @@ export type OrderProduct = {
 type ProductLocatorModalProps = {
   open: boolean;
   onClose: () => void;
-  onAdd: (product: OrderProduct) => void;
+  onAdd: (product: OrderProduct) => boolean | void;
 };
 
 const categories = [
@@ -73,6 +73,10 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
   const [catalog, setCatalog] = useState<OrderProduct[]>(products);
   const [catalogMode, setCatalogMode] = useState<"example" | "database">("example");
   const [catalogError, setCatalogError] = useState("");
+  const [addedMessage, setAddedMessage] = useState("");
+  const confirmAdd = (product: OrderProduct) => {
+    if (onAdd(product) !== false) setAddedMessage(`${product.name} adicionado à comanda com sucesso.`);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -109,11 +113,11 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
       if (event.key === "F11") {
         event.preventDefault();
         const selected = catalog.find((product) => product.code === selectedCode);
-        if (selected) onAdd(selected);
+        if (selected) confirmAdd(selected);
       }
       if (event.key === "Enter") {
         const selected = products.find((product) => product.code === selectedCode);
-        if (selected) onAdd(selected);
+        if (selected) confirmAdd(selected);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -152,6 +156,7 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
           </div>
         </div>
 
+        {addedMessage && <div role="status" aria-live="polite" className="border-b border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800">✓ {addedMessage}</div>}
         {catalogError && <p role="alert" className="bg-amber-50 px-3 py-1 text-xs text-amber-800">Catálogo online indisponível: {catalogError}</p>}
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <aside className="w-[320px] shrink-0 overflow-y-auto bg-[#2b2b2b] p-2">
@@ -206,14 +211,14 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
                     <div
                       key={`${product.code}-${product.name}`}
                       onClick={() => setSelectedCode(product.code)}
-                      onDoubleClick={() => onAdd(product)}
+                      onDoubleClick={() => confirmAdd(product)}
                       className={`grid h-12 cursor-default grid-cols-[110px_96px_1fr_128px_96px_96px] items-center border-b border-gray-100 border-l-4 border-l-[#2482a8] text-sm ${selected ? "bg-[#dcebfa]" : index % 2 ? "bg-[#f9f9f9]" : "bg-white"}`}
                     >
                       <div className="flex h-full items-center border-r border-gray-200 px-2">{product.category}</div>
                       <div className="flex h-full items-center border-r border-gray-200 px-2">{product.code}</div>
                       <div className="flex h-full items-center border-r border-gray-200 px-2">{product.name}</div>
                       <div className="flex h-full items-center border-r border-gray-200 px-2 font-bold">{money.format(product.price)}</div>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); onAdd(product); }} className="flex h-full items-center justify-center border-r border-gray-200 text-3xl font-light hover:bg-blue-50" aria-label={`Adicionar ${product.name}`}>+</button>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); confirmAdd(product); }} className="flex h-full items-center justify-center border-r border-gray-200 text-3xl font-light hover:bg-blue-50" aria-label={`Adicionar ${product.name}`}>+</button>
                       <button type="button" onClick={(event) => event.stopPropagation()} className="flex h-full items-center justify-center text-2xl hover:bg-blue-50" aria-label={`Personalizar ${product.name}`}>☷</button>
                     </div>
                   );
