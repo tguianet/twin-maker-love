@@ -174,6 +174,14 @@ function Gestao() {
               </label>
               <button className={btn} onClick={() => void loadData()} disabled={!orgId}>Atualizar dados</button>
             </div>
+            {organizations.length === 0 && (
+              <div role="status" className="mb-5 rounded border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+                <p className="font-semibold">Conta autenticada, mas sem restaurante vinculado.</p>
+                <p className="mt-1">O administrador do TGuia Food precisa vincular seu usuário à organização antes de liberar a gestão. Nenhuma permissão é concedida automaticamente.</p>
+                <p className="mt-2 break-all font-mono text-xs">ID do usuário: {userId}</p>
+                <button type="button" className={btn + " mt-2"} onClick={() => void loadOrganizations()}>Verificar acesso novamente</button>
+              </div>
+            )}
             <nav className="mb-5 flex gap-2 border-b border-[#acbac8] pb-2">
               <button className={btn + (tab === "produtos" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("produtos")}>Produtos</button>
               <button className={btn + (tab === "geladeira" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("geladeira")}>Geladeira / Estoque</button>
