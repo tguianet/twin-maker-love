@@ -79,6 +79,7 @@ function Index() {
   const [tableStates, setTableStates] = useState<Record<string, boolean>>(() => readTableStates());
   const [tableNames, setTableNames] = useState<Record<string, string>>(() => readTableNames());
   const [ordersWithItems, setOrdersWithItems] = useState<Set<string>>(() => readOrdersWithItems());
+  const [tableQuery, setTableQuery] = useState("");
 
   useEffect(() => {
     const refresh = () => {
@@ -108,6 +109,11 @@ function Index() {
     [tableStates],
   );
 
+  const normalizedTableQuery = tableQuery.trim().toLocaleLowerCase("pt-BR");
+  const matchesTableQuery = (number: string) => !normalizedTableQuery || number.includes(normalizedTableQuery) || String(Number(number)).includes(normalizedTableQuery) || (tableNames[number] || "").toLocaleLowerCase("pt-BR").includes(normalizedTableQuery);
+  const visibleClosingTables = closingTables.filter(matchesTableQuery);
+  const visibleFreeTables = freeTables.filter(matchesTableQuery);
+  const table01Visible = matchesTableQuery("01");
   const table01Blocked = Boolean(tableStates["01"]);
   const table01HasOrder = ordersWithItems.has("01");
   const ongoingCount = 1 + closingTables.length;
@@ -155,7 +161,7 @@ function Index() {
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2">
               <svg className="h-4 w-4 text-app-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>
             </div>
-            <input type="text" placeholder="Buscar número ou nome..." className="w-64 rounded-sm border border-app-line bg-app-field py-1 pl-8 pr-2 text-sm focus:border-app-icon-sky focus:outline-none focus:ring-1 focus:ring-app-icon-sky" />
+            <input type="text" value={tableQuery} onChange={(event) => setTableQuery(event.target.value)} placeholder="Buscar número ou nome..." className="w-64 rounded-sm border border-app-line bg-app-field py-1 pl-8 pr-2 text-sm focus:border-app-icon-sky focus:outline-none focus:ring-1 focus:ring-app-icon-sky" />
           </div>
           <button className="flex items-center space-x-1 rounded p-1 text-sm font-semibold hover:bg-app-hover"><span>Juntar Pedidos</span></button>
         </div>
@@ -169,16 +175,16 @@ function Index() {
         <section className="mb-6">
           <h1 className="mb-4 text-sm font-bold text-app-text">Pedidos em Andamento ({ongoingCount} de {ongoingCount})</h1>
           <div className="flex flex-wrap gap-4">
-            <div
+            {table01Visible && <div
               className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center transition-colors"
               style={{ backgroundColor: table01Blocked ? "#e5ad1d" : table01HasOrder ? "#32965d" : undefined }}
               title={`Mesa 01 - ${tableNames["01"] || "marcos"}`}
             >
               <span className="text-3xl font-bold text-white">01</span>
               <span className="mt-1 text-xs text-white">{tableNames["01"] || "marcos"}</span>
-            </div>
+            </div>}
 
-            {closingTables.map((table) => (
+            {visibleClosingTables.map((table) => (
               <div
                 key={table}
                 className="table-box-active relative flex h-24 w-24 cursor-pointer flex-col items-center justify-center transition-colors"
@@ -195,7 +201,7 @@ function Index() {
         <section className="flex-1">
           <h2 className="mb-4 text-sm font-bold text-app-text">Mesas / Comandas Livres</h2>
           <div className="app-grid">
-            {freeTables.map((n) => (
+            {visibleFreeTables.map((n) => (
               <div key={n} className="table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark">
                 <span className="text-[9px]">ABRIR</span>
                 <span className="mt-2 text-2xl font-bold">{n}</span>
