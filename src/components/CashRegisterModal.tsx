@@ -55,8 +55,8 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
   if(!session)return;
   if(!window.confirm("Confirma o fechamento deste caixa? Não será possível adicionar novos lançamentos a este turno."))return;
   const {data:auth}=await supabase.auth.getUser();if(!auth.user)throw Error("Sessão expirada.");
-  const {error:e}=await supabase.from("cash_sessions").update({closed_at:new Date().toISOString(),closed_by:auth.user.id}).eq("id",session.id).is("closed_at",null);
-  if(e)throw e;setNotice("Caixa fechado.");
+  const {data, error:e}=await supabase.from("cash_sessions").update({closed_at:new Date().toISOString(),closed_by:auth.user.id}).eq("id",session.id).is("closed_at",null).select("id").maybeSingle();
+  if(e)throw e;if(!data)throw Error("Este caixa já foi fechado em outro terminal. Atualize os dados.");setNotice("Caixa fechado.");
  });
  const cashIn=rows.filter(x=>x.direction==="in").reduce((a,x)=>a+Number(x.amount),0);
  const cashOut=rows.filter(x=>x.direction==="out").reduce((a,x)=>a+Number(x.amount),0);
@@ -81,7 +81,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
        {rows.map(r=><tr key={r.id} className="border-b"><td className="whitespace-nowrap p-2">{new Date(r.created_at).toLocaleString("pt-BR")}</td><td className="p-2">{r.description}</td><td className="p-2 text-right">{r.direction==="in"?fmt(Number(r.amount)):""}</td><td className="p-2 text-right">{r.direction==="out"?fmt(Number(r.amount)):""}</td><td className="p-2">{methods[r.method]||r.method}</td></tr>)}</tbody></table>
       </div>
       <div className="flex justify-end gap-12 border-t px-4 py-2 font-bold"><span>{fmt(cashIn)}</span><span>{fmt(cashOut)}</span></div>
-      <div className="flex justify-end gap-3 border-t bg-[#f5f5f5] p-2"><button className={button} onClick={()=>window.print()}>▤ Imprimir</button><button className={button} disabled={!session||busy} onClick={()=>setAddOpen(true)}>＋ Novo Lançamento</button></div>
+      <div className="flex justify-end gap-3 border-t bg-[#f5f5f5] p-2"><button className={button} disabled={!org||busy} onClick={refresh}>↻ Atualizar</button><button className={button} onClick={()=>window.print()}>▤ Imprimir</button><button className={button} disabled={!session||busy} onClick={()=>setAddOpen(true)}>＋ Novo Lançamento</button></div>
     </div>
     <aside className="flex min-h-[370px] flex-col border border-[#b9b9b9] bg-white">
       <h2 className="bg-[#dedede] px-3 py-2 font-bold">Resumo</h2>
