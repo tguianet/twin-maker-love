@@ -93,7 +93,7 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
         if (items.error || groups.error) throw items.error || groups.error;
         const categoryNames = new Map((groups.data || []).map(c => [c.id, c.name]));
         const mapped = (items.data || []).map(p => ({ code: p.code || p.id, name: p.name, price: Number(p.sale_price), category: categoryNames.get(p.category_id) || "outros" }));
-        if (active) { setCatalog(mapped); setCatalogMode("database"); setCatalogError(""); setCategory("Todas"); setSelectedCode(mapped[0]?.code || ""); }
+        if (active) { setCatalog(mapped.length ? mapped : products); setCatalogMode(mapped.length ? "database" : "example"); setCatalogError(mapped.length ? "" : "O banco ainda não tem produtos cadastrados. Exibindo o catálogo original apenas para demonstração local."); setCategory("Todas"); setSelectedCode(mapped[0]?.code || products[0]?.code || ""); }
       } catch (error) {
         if (active) setCatalogError(error instanceof Error ? error.message : "Falha ao carregar catálogo");
       }
@@ -112,7 +112,7 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
         if (selected) onAdd(selected);
       }
       if (event.key === "Enter") {
-        const selected = products.find((product) => product.code === selectedCode);
+        const selected = catalog.find((product) => product.code === selectedCode);
         if (selected) onAdd(selected);
       }
     };
