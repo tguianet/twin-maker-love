@@ -214,12 +214,12 @@ function Index() {
             <div className="mb-5 flex flex-wrap gap-3">
               {liveTables.filter(t => liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => {
                 const order = liveOrders.find(o => o.table_id === t.id);
-                return <a key={t.id} href="/comandas-online" className="table-box-active flex h-24 w-24 flex-col items-center justify-center text-white" style={{backgroundColor:order?.status === "closing" ? "#e5ad1d" : "#32965d"}}><span className="text-2xl font-bold">{t.number}</span><span className="text-xs">{order?.status === "closing" ? "No caixa" : "Ocupada"}</span></a>;
+                return <a key={t.id} href={`/comandas-online?mesa=${t.id}`} className="table-box-active flex h-24 w-24 flex-col items-center justify-center text-white" style={{backgroundColor:order?.status === "closing" ? "#e5ad1d" : "#32965d"}}><span className="text-2xl font-bold">{t.number}</span><span className="text-xs">{order?.status === "closing" ? "No caixa" : "Ocupada"}</span></a>;
               })}
             </div>
             <h2 className="mb-4 text-sm font-bold">Mesas livres</h2>
             <div className="app-grid">
-              {liveTables.filter(t => !liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => <a key={t.id} href="/comandas-online" className="table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark"><span className="text-[9px]">ABRIR</span><span className="mt-2 text-2xl font-bold">{t.number}</span></a>)}
+              {liveTables.filter(t => !liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => <a key={t.id} href={`/comandas-online?mesa=${t.id}`} className="table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark"><span className="text-[9px]">ABRIR</span><span className="mt-2 text-2xl font-bold">{t.number}</span></a>)}
             </div>
             {!liveTables.length && !liveError && <p className="text-sm">Nenhuma mesa cadastrada. Acesse Gestão para cadastrar.</p>}
           </div> :
