@@ -43,7 +43,7 @@ function SharedOrdersPage() {
         const { supabase } = await import("../lib/supabase");
         if (cancelled) return;
         setClient(supabase);
-        setRpcAvailable(supabase.supabaseUrl === "https://eqelwfhiizigduybtkxh.supabase.co");
+        setRpcAvailable((supabase as unknown as { supabaseUrl: string }).supabaseUrl === "https://eqelwfhiizigduybtkxh.supabase.co");
         const { data: userResult, error: userError } = await supabase.auth.getUser();
         if (userError) throw userError;
         if (!userResult.user) { setError("Entre no sistema pela Gestão para consultar as comandas compartilhadas."); return; }

@@ -32,8 +32,8 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
   if(!auth.user)throw Error("Entre na Gestão para acessar o caixa.");
   const {data,error:m}=await supabase.from("organization_members").select("organization_id").eq("user_id",auth.user.id).eq("active",true).limit(1);if(m)throw m;
   if(!data?.length)throw Error("Usuário sem restaurante vinculado.");
-  if(!mounted)return;setOrg(data[0].organization_id);setOperator(auth.user.email||"Operador");
-  await load(data[0].organization_id);
+  if(!mounted)return;setOrg(data[0]!.organization_id);setOperator(auth.user.email||"Operador");
+  await load(data[0]!.organization_id);
  }catch(e){if(mounted)setError(e instanceof Error?e.message:"Falha ao abrir caixa.");}})();return()=>{mounted=false;};},[]);
   const run=async(action:()=>Promise<void>)=>{setBusy(true);setError("");setNotice("");try{await action();if(org)await load(org);}catch(e){setError(e instanceof Error?e.message:"Operação não concluída.");}finally{setBusy(false);}};
   const refresh=()=>run(async()=>{setNotice("Dados atualizados.");});
