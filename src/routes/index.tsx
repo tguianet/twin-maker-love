@@ -318,9 +318,9 @@ function Index() {
             </div>
             {!liveTables.length && !liveError && <p className="text-sm">Nenhuma mesa cadastrada. Acesse Gestão para cadastrar.</p>}
           </div> :
-          <div className="mb-3 border border-amber-300 bg-amber-50 p-3 text-xs">{liveError || "Modo de demonstração local."} As mesas abaixo são da interface original e não representam comandas reais no Supabase. <a href="/gestao" className="underline">Acessar Gestão</a></div>}
+          <div className="mb-3 border border-amber-300 bg-amber-50 p-3 text-xs">{liveError || "Modo de demonstração local."} A operação real exige conexão com o restaurante; nenhuma comanda local será exibida quando houver erro de conexão. <a href="/gestao" className="underline">Acessar Gestão</a></div>}
 
-        {liveTables === null && <>
+        {!liveLoading && !liveError && liveTables === null && <>
 
         <section className="mb-6">
           <h1 className="mb-4 text-sm font-bold text-app-text">Pedidos em Andamento ({ongoingCount} de {ongoingCount})</h1>
@@ -408,7 +408,7 @@ function Index() {
           </div>
         </section>
       </div>}
-      {liveTables === null && <TableOrderModal />}
+      {!liveLoading && !liveError && liveTables === null && <TableOrderModal />}
       {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
       <footer className="relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
         <div className="flex items-center space-x-2"><div className="h-4 w-8 border border-app-border bg-app-field" /><span className="text-app-text">Exibir Total da Conta e Duração</span></div>
