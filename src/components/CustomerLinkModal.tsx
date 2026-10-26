@@ -18,14 +18,11 @@ export function linkedCustomer(table: string): LocalCustomer | null {
 export function CustomerLinkModal({ table, onClose, onSaved }: {
   table: string; onClose: () => void; onSaved: (customer: LocalCustomer | null) => void;
 }) {
-  const [customers, setCustomers] = useState<LocalCustomer[]>([]);
+  const [customers, setCustomers] = useState<LocalCustomer[]>(() => Object.values(readMap<LocalCustomer>(CUSTOMERS_KEY)).filter(x => x && typeof x.name === "string"));
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
-  useEffect(() => {
-    setCustomers(Object.values(readMap<LocalCustomer>(CUSTOMERS_KEY)).filter(x => x && typeof x.name === "string"));
-  }, []);
   const associate = (customer: LocalCustomer | null) => {
     try {
       const links = readMap<string>(LINKS_KEY);
