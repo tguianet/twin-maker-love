@@ -42,7 +42,7 @@ function Gestao() {
         const { data } = await supabase.auth.getUser();
         if (active) setUserId(data.user?.id || "");
       })
-      .catch(() => { if (active) setConnectionError("Supabase não configurado. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para usar dados reais."); });
+      .catch(() => { if (active) setConnectionError("Não foi possível conectar à autenticação. Verifique a configuração do Supabase."); });
     return () => { active = false; };
   }, []);
 
@@ -81,7 +81,11 @@ function Gestao() {
     setBusy(true); setError("");
     const result = await client.auth.signInWithPassword({ email, password });
     if (result.error) setError(result.error.message);
-    else setUserId(result.data.user.id);
+    else {
+      setUserId(result.data.user.id);
+      setPassword("");
+      setNotice("Login realizado. Carregando seus estabelecimentos autorizados.");
+    }
     setBusy(false);
   }
   async function signup(event: FormEvent) {
