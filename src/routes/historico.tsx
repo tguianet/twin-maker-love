@@ -44,6 +44,27 @@ function HistoryPage() {
       (method === "all" || method === order.paymentMethod);
   }), [history, query, method]);
   const total = visible.reduce((sum, order) => sum + order.total, 0);
+  const exportCsv = () => {
+    const header = ["Data", "Mesa", "Cliente", "Forma informada", "Subtotal", "Servico", "Total", "Modo"];
+    const escapeCsv = (value: string | number) => {
+      const safe = String(value).replace(/^[=+@-]/, "'").replace(/"/g, '""');
+      return '"' + safe + '"';
+    };
+    const rows = visible.map(order => [
+      order.closedAt, order.table, order.customer?.name || "", methods[order.paymentMethod] || order.paymentMethod,
+      order.subtotal.toFixed(2), order.service.toFixed(2), order.total.toFixed(2), order.mode || "local-demo",
+    ]);
+    const csv = [header, ...rows].map(row => row.map(escapeCsv).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "tguia-food-historico-local.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-[#273142]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#b8c4d1] bg-[#e3eaf1] px-5 py-3">
@@ -65,6 +86,7 @@ function HistoryPage() {
             {Object.entries(methods).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
           </select>
         </div>
+        <div className="mb-4 flex justify-end"><button type="button" disabled={visible.length === 0} onClick={exportCsv} className="rounded border border-[#aebcca] bg-white px-4 py-2 text-sm font-semibold hover:bg-[#e7edf3] disabled:opacity-50">Exportar CSV local</button></div>
         <div className="mb-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded border border-[#c4d0da] bg-white p-4"><div className="text-xs text-slate-600">Comandas filtradas</div><strong className="text-xl">{visible.length}</strong></div>
           <div className="rounded border border-[#c4d0da] bg-white p-4"><div className="text-xs text-slate-600">Total registrado (demonstração)</div><strong className="text-xl">{money(total)}</strong></div>
