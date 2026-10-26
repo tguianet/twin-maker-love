@@ -48,7 +48,7 @@ const icon = (path: string, className: string) => (
 
 function RibbonButton({ width, children, svg, href }: { width: string; children: React.ReactNode; svg: React.ReactNode; href?: string }) {
   const className = `ribbon-button flex flex-col items-center justify-start rounded-sm border border-transparent p-1 ${width}`;
-  if (href) return <a href={href} className={className}>{svg}<span className="leading-tight">{children}</span></button>;
+  if (href) return <a href={href} className={className}>{svg}<span className="leading-tight">{children}</span></a>;
   return <button type="button" className={className}>{svg}<span className="leading-tight">{children}</span></button>;
 }
 
