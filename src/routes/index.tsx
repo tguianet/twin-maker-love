@@ -157,6 +157,10 @@ function Index() {
       setLiveItems(orderResult.data?.order_items || []);
       setLiveProducts(productResult.data || []);
       setLiveRate(Number(orgResult.data?.service_rate || 0));
+      const {data: currentOrders, error: refreshError} = await supabase.from("orders")
+        .select("table_id,status,customer_name").eq("organization_id",liveOrg).in("status",["open","closing"]);
+      if (refreshError) throw refreshError;
+      setLiveOrders(currentOrders || []);
     } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Erro ao consultar mesa."); }
     finally { setLiveBusy(false); }
   };
