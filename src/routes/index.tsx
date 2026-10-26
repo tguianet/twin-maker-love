@@ -196,6 +196,7 @@ function Index() {
     if (!selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed) return;
     setLiveBusy(true); setLiveNotice("");
     try {
+      let successMessage = "Comanda aberta no Supabase.";
       if (!liveOrder) {
         const {data:auth} = await supabase.auth.getUser();
         if (!auth.user) throw Error("Faça login na Gestão.");
@@ -205,9 +206,11 @@ function Index() {
         if (liveOrder.status !== "open" || !liveSelectedProduct) throw Error("Selecione um produto para uma comanda aberta.");
         const {error} = await supabase.rpc("add_order_product",{p_order_id:liveOrder.id,p_product_id:liveSelectedProduct,p_quantity:liveQty});
         if (error) throw error;
+        const productName = liveProducts.find(p=>p.id===liveSelectedProduct)?.name || "Produto";
+        successMessage = `${liveQty}× ${productName} adicionado à comanda com sucesso.`;
       }
       await openLiveTable(selectedLiveTable);
-      setLiveNotice("Comanda atualizada no Supabase.");
+      setLiveNotice(successMessage);
     } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Falha ao salvar pedido."); }
     finally { setLiveBusy(false); }
   };
