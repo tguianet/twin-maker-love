@@ -18,6 +18,7 @@ function Gestao() {
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [createAccount, setCreateAccount] = useState(false);
   const [organizations, setOrganizations] = useState<Org[]>([]);
   const [orgId, setOrgId] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -83,6 +84,20 @@ function Gestao() {
     else setUserId(result.data.user.id);
     setBusy(false);
   }
+  async function signup(event: FormEvent) {
+    event.preventDefault();
+    if (!client || busy) return;
+    if (password.length < 8) { setError("A senha precisa ter pelo menos 8 caracteres."); return; }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await client.auth.signUp({ email: email.trim(), password });
+      if (result.error) throw result.error;
+      setPassword("");
+      setCreateAccount(false);
+      setNotice("Solicitação recebida. Confirme o e-mail, se solicitado, e entre. Sua conta precisará ser vinculada ao restaurante por um administrador; o cadastro não concede acesso automaticamente.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Falha ao solicitar cadastro."); }
+    finally { setBusy(false); }
+  }
   async function logout() {
     await client?.auth.signOut();
     setUserId(""); setOrganizations([]); setOrgId(""); setProducts([]); setStocks([]);
@@ -140,12 +155,13 @@ function Gestao() {
         {error && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3">{error}</p>}
         {notice && <p role="status" className="mb-4 rounded border border-green-300 bg-green-50 p-3">{notice}</p>}
         {!userId ? (
-          <form onSubmit={login} className="mx-auto mt-16 max-w-md space-y-4 border border-[#c2ced9] bg-white p-6">
-            <h1 className="text-xl font-semibold">Acesso à gestão</h1>
-            <p className="text-sm text-slate-600">Entre com um usuário autorizado do seu restaurante no Supabase.</p>
+          <form onSubmit={createAccount ? signup : login} className="mx-auto mt-16 max-w-md space-y-4 border border-[#c2ced9] bg-white p-6">
+            <h1 className="text-xl font-semibold">{createAccount ? "Criar conta" : "Acesso à gestão"}</h1>
+            <p className="text-sm text-slate-600">{createAccount ? "Cadastre seu e-mail. O acesso ao restaurante somente será liberado após vínculo administrativo." : "Entre com um usuário autorizado do seu restaurante no Supabase."}</p>
             <label className="block text-sm">E-mail<input className={field} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></label>
-            <label className="block text-sm">Senha<input className={field} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label>
-            <button disabled={busy || !client} className={btn}>Entrar</button>
+            <label className="block text-sm">Senha<input className={field} type="password" autoComplete={createAccount ? "new-password" : "current-password"} value={password} onChange={e => setPassword(e.target.value)} required /></label>
+            <button disabled={busy || !client} className={btn}>{createAccount ? "Solicitar cadastro" : "Entrar"}</button>
+            <button type="button" onClick={() => { setCreateAccount(v => !v); setError(""); setPassword(""); }} className="ml-3 text-sm text-blue-700 underline">{createAccount ? "Já tenho conta" : "Criar primeira conta"}</button>
           </form>
         ) : (
           <>
