@@ -70,6 +70,37 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
   const [query, setQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState("2");
   const [groupCategory, setGroupCategory] = useState(false);
+  const [catalog, setCatalog] = useState<OrderProduct[]>(products);
+  const [catalogMode, setCatalogMode] = useState<"example" | "database">("example");
+  const [catalogError, setCatalogError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    const load = async () => {
+      try {
+        const { supabase } = await import("../lib/supabase");
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth.user) return;
+        const { data: memberships, error: membershipError } = await supabase.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("active", true).limit(1);
+        if (membershipError) throw membershipError;
+        const organizationId = memberships?.[0]?.organization_id;
+        if (!organizationId) return;
+        const [items, groups] = await Promise.all([
+          supabase.from("products").select("code,name,sale_price,category_id,id").eq("organization_id", organizationId).eq("active", true).order("name"),
+          supabase.from("product_categories").select("id,name").eq("organization_id", organizationId),
+        ]);
+        if (items.error || groups.error) throw items.error || groups.error;
+        const categoryNames = new Map((groups.data || []).map(c => [c.id, c.name]));
+        const mapped = (items.data || []).map(p => ({ code: p.code || p.id, name: p.name, price: Number(p.sale_price), category: categoryNames.get(p.category_id) || "outros" }));
+        if (active) { setCatalog(mapped); setCatalogMode("database"); setCatalogError(""); setCategory("Todas"); setSelectedCode(mapped[0]?.code || ""); }
+      } catch (error) {
+        if (active) setCatalogError(error instanceof Error ? error.message : "Falha ao carregar catálogo");
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -77,7 +108,7 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
       if (event.key === "Escape") onClose();
       if (event.key === "F11") {
         event.preventDefault();
-        const selected = products.find((product) => product.code === selectedCode);
+        const selected = catalog.find((product) => product.code === selectedCode);
         if (selected) onAdd(selected);
       }
       if (event.key === "Enter") {
@@ -87,11 +118,11 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onAdd, onClose, selectedCode]);
+  }, [open, onAdd, onClose, selectedCode, catalog]);
 
   const visibleProducts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("pt-BR");
-    return products.filter((product) => {
+    return catalog.filter((product) => {
       const categoryMatches = category === "Todas" || product.category === category;
       const queryMatches =
         !normalized ||
@@ -100,7 +131,9 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
         product.category.toLocaleLowerCase("pt-BR").includes(normalized);
       return categoryMatches && queryMatches;
     });
-  }, [category, query]);
+  }, [category, query, catalog]);
+
+  const categoryButtons = catalogMode === "database" ? [["Todas", "bg-white text-black"], ...Array.from(new Set(catalog.map(p => p.category))).map(name => [name, "bg-[#3f8e79] text-white"])] : categories;
 
   if (!open) return null;
 
@@ -110,7 +143,7 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
         <div className="flex h-8 shrink-0 select-none items-center justify-between border-b border-[#999] bg-gradient-to-b from-[#eaeaea] to-[#d0d0d0] px-2">
           <div className="flex items-center gap-2">
             <span className="h-4 w-4 rounded-sm bg-blue-500" />
-            <span className="text-xs font-semibold text-gray-800">Localizar Produto</span>
+            <span className="text-xs font-semibold text-gray-800">Localizar Produto {catalogMode === "example" ? "(catálogo de exemplo)" : "(catálogo do restaurante)"}</span>
           </div>
           <div className="flex gap-1">
             <button type="button" className="flex h-6 w-8 items-center justify-center hover:bg-gray-300">−</button>
@@ -119,10 +152,11 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
           </div>
         </div>
 
+        {catalogError && <p role="alert" className="bg-amber-50 px-3 py-1 text-xs text-amber-800">Catálogo online indisponível: {catalogError}</p>}
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <aside className="w-[320px] shrink-0 overflow-y-auto bg-[#2b2b2b] p-2">
             <div className="grid grid-cols-2 gap-2">
-              {categories.map(([label, colorClass]) => (
+              {categoryButtons.map(([label, colorClass]) => (
                 <button
                   key={label}
                   type="button"
