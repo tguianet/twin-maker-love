@@ -183,6 +183,20 @@ function Index() {
     } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Falha ao salvar pedido."); }
     finally { setLiveBusy(false); }
   };
+  const sendLiveOrderToCashier = async () => {
+    if (!liveOrder || !selectedLiveTable || !liveOrg || liveBusy || liveOrder.status !== "open") return;
+    if (liveItems.length === 0) { setLiveNotice("Adicione um produto antes de encaminhar ao caixa."); return; }
+    setLiveBusy(true); setLiveNotice("");
+    try {
+      const {data,error} = await supabase.from("orders").update({status:"closing",closing_at:new Date().toISOString()})
+        .eq("id",liveOrder.id).eq("organization_id",liveOrg).eq("status","open").select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw Error("Comanda alterada em outro terminal. Consulte novamente.");
+      await openLiveTable(selectedLiveTable);
+      setLiveNotice("Comanda enviada ao caixa. Pagamento ainda não registrado.");
+    } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Falha ao enviar ao caixa."); }
+    finally { setLiveBusy(false); }
+  };
   const closingTables = useMemo(
     () => allFreeTables.filter((table) => Boolean(tableStates[table]) || ordersWithItems.has(table)),
     [tableStates, ordersWithItems],
@@ -328,7 +342,7 @@ function Index() {
             <div className="min-h-32 border"><table className="w-full text-left"><thead className="bg-[#e9eff5]"><tr><th className="p-2">Produto</th><th className="p-2">Qtd.</th><th className="p-2">Valor</th></tr></thead><tbody>{liveItems.map(item=><tr key={item.id} className="border-t"><td className="p-2">{item.product_name}</td><td className="p-2">{item.quantity}</td><td className="p-2">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(item.quantity*item.unit_price)}</td></tr>)}</tbody></table></div>
             <p className="text-right font-bold">Total com serviço ({liveRate}%): {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(liveItems.reduce((n,i)=>n+i.quantity*i.unit_price,0)*(1+liveRate/100))}</p>
             {liveOrder?.status === "open" && <div className="flex gap-2"><select aria-label="Produto" className="min-w-0 flex-1 border p-2" value={liveSelectedProduct} onChange={e=>setLiveSelectedProduct(e.target.value)}><option value="">Selecionar produto</option>{liveProducts.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><input aria-label="Quantidade" type="number" min={1} max={100} className="w-16 border p-2" value={liveQty} onChange={e=>setLiveQty(Number(e.target.value))} /></div>}
-            <div className="flex justify-end gap-2 border-t pt-3"><a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border bg-[#e9eff5] px-4 py-2">Ir ao caixa</a>{(!liveOrder || liveOrder.status === "open") && <button disabled={liveBusy || (!!liveOrder && (!liveSelectedProduct || !Number.isInteger(liveQty) || liveQty<1 || liveQty>100))} onClick={() => void saveLiveOrder()} className="bg-[#315976] px-4 py-2 font-bold text-white disabled:opacity-50">{liveBusy ? "Salvando..." : liveOrder ? "Adicionar produto" : "Abrir comanda"}</button>}</div>
+            <div className="flex justify-end gap-2 border-t pt-3">{liveOrder?.status === "open" && <button type="button" onClick={() => void sendLiveOrderToCashier()} disabled={liveBusy || liveItems.length === 0} className="border bg-[#e9eff5] px-4 py-2 disabled:opacity-50">Encaminhar ao caixa</button>}<a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border bg-[#e9eff5] px-4 py-2">Abrir caixa</a>{(!liveOrder || liveOrder.status === "open") && <button disabled={liveBusy || (!!liveOrder && (!liveSelectedProduct || !Number.isInteger(liveQty) || liveQty<1 || liveQty>100))} onClick={() => void saveLiveOrder()} className="bg-[#315976] px-4 py-2 font-bold text-white disabled:opacity-50">{liveBusy ? "Salvando..." : liveOrder ? "Adicionar produto" : "Abrir comanda"}</button>}</div>
           </div>
         </section>
       </div>}
