@@ -104,6 +104,7 @@ function Index() {
           {["PRODUTOS", "FINANCEIRO", "CONFIGURAÇÕES", "APPS"].map((t) => (
             <button key={t} className="px-3 py-1 text-app-muted hover:bg-app-chrome-hover">{t}</button>
           ))}
+          <a href="/gestao" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">GESTÃO / GELADEIRA</a>
         </div>
         <div className="flex space-x-0">
           <button className="flex h-8 w-8 items-center justify-center text-app-muted hover:bg-app-chrome-hover">_</button>
