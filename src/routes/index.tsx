@@ -93,6 +93,12 @@ function Index() {
   const [liveCustomerSaving,setLiveCustomerSaving] = useState(false);
   const [liveLoadFailed, setLiveLoadFailed] = useState(false);
   const [liveNotice, setLiveNotice] = useState("");
+  const [liveNoticeSequence,setLiveNoticeSequence] = useState(0);
+  useEffect(() => {
+    if (!liveNotice || !selectedLiveTable) return;
+    const timeout = window.setTimeout(() => setLiveNotice(""), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [liveNotice,liveNoticeSequence,selectedLiveTable]);
   const [liveProducts, setLiveProducts] = useState<{id:string;name:string;sale_price:number}[]>([]);
   const [liveSelectedProduct, setLiveSelectedProduct] = useState("");
   const [liveQty, setLiveQty] = useState(1);
@@ -211,6 +217,7 @@ function Index() {
       }
       await openLiveTable(selectedLiveTable);
       setLiveNotice(successMessage);
+      setLiveNoticeSequence(n=>n+1);
     } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Falha ao salvar pedido."); }
     finally { setLiveBusy(false); }
   };
