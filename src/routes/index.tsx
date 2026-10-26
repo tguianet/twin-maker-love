@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TableOrderModal } from "../components/TableOrderModal";
 import { CashRegisterModal } from "../components/CashRegisterModal";
 
 export const Route = createFileRoute("/")({
@@ -109,7 +108,7 @@ function Index() {
       const refresh = async () => {
         const { data: auth } = await supabase.auth.getUser();
         if (!active) return;
-        if (!auth.user) { setLiveTables(null); setLiveLoading(false); return; }
+        if (!auth.user) { setLiveError("Faça login na Gestão para acessar as comandas reais."); setLiveTables(null); setLiveLoading(false); return; }
         const { data: memberships, error: memberError } = await supabase.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("active", true).limit(1);
         if (memberError) throw memberError;
         const orgId = memberships?.[0]?.organization_id;
@@ -408,7 +407,7 @@ function Index() {
           </div>
         </section>
       </div>}
-      {!liveLoading && !liveError && liveTables === null && <TableOrderModal />}
+
       {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
       <footer className="relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
         <div className="flex items-center space-x-2"><div className="h-4 w-8 border border-app-border bg-app-field" /><span className="text-app-text">Exibir Total da Conta e Duração</span></div>
