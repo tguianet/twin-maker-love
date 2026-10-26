@@ -77,6 +77,40 @@ function Index() {
   const [tableNames, setTableNames] = useState<Record<string, string>>(() => readTableNames());
   const [ordersWithItems, setOrdersWithItems] = useState<Set<string>>(() => readOrdersWithItems());
   const [tableQuery, setTableQuery] = useState("");
+  const [liveTables, setLiveTables] = useState<{id:string;number:number}[] | null>(null);
+  const [liveOrders, setLiveOrders] = useState<{table_id:string|null;status:string;customer_name:string|null}[]>([]);
+  const [liveError, setLiveError] = useState("");
+  const [liveLoading, setLiveLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    let refreshLive: (() => Promise<void>) | null = null;
+    void import("../lib/supabase").then(async ({ supabase }) => {
+      const refresh = async () => {
+        const { data: auth } = await supabase.auth.getUser();
+        if (!active) return;
+        if (!auth.user) { setLiveTables(null); setLiveLoading(false); return; }
+        const { data: memberships, error: memberError } = await supabase.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("active", true).limit(1);
+        if (memberError) throw memberError;
+        const orgId = memberships?.[0]?.organization_id;
+        if (!orgId) { setLiveError("Conta sem restaurante vinculado. Acesse Gestão."); setLiveTables([]); setLiveLoading(false); return; }
+        const [tablesResult, ordersResult] = await Promise.all([
+          supabase.from("restaurant_tables").select("id,number").eq("organization_id",orgId).eq("active",true).order("number"),
+          supabase.from("orders").select("table_id,status,customer_name").eq("organization_id",orgId).in("status",["open","closing"]),
+        ]);
+        if (tablesResult.error || ordersResult.error) throw tablesResult.error || ordersResult.error;
+        if (!active) return;
+        setLiveTables(tablesResult.data || []);
+        setLiveOrders(ordersResult.data || []);
+        setLiveError(""); setLiveLoading(false);
+      };
+      refreshLive = refresh;
+      await refresh();
+    }).catch(() => { if (active) { setLiveError("Não foi possível carregar as mesas online."); setLiveLoading(false); } });
+    const onFocus = () => { void refreshLive?.().catch(() => { if (active) setLiveError("Falha ao atualizar mesas."); }); };
+    window.addEventListener("focus", onFocus);
+    return () => { active = false; window.removeEventListener("focus", onFocus); };
+  }, []);
+
 
   useEffect(() => {
     const refresh = () => {
@@ -171,6 +205,25 @@ function Index() {
       </div>
 
       <main className="app-scrollbar-hide flex flex-1 flex-col overflow-y-auto bg-background p-6">
+        {liveLoading ? <p className="mb-3 text-sm">Verificando mesas online...</p> : liveTables !== null ?
+          <div>
+            {liveError && <p role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3 text-sm">{liveError}</p>}
+            <h1 className="mb-4 text-sm font-bold">Mesas do restaurante · Supabase</h1>
+            <div className="mb-5 flex flex-wrap gap-3">
+              {liveTables.filter(t => liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => {
+                const order = liveOrders.find(o => o.table_id === t.id);
+                return <a key={t.id} href="/comandas-online" className="table-box-active flex h-24 w-24 flex-col items-center justify-center text-white" style={{backgroundColor:order?.status === "closing" ? "#e5ad1d" : "#32965d"}}><span className="text-2xl font-bold">{t.number}</span><span className="text-xs">{order?.status === "closing" ? "No caixa" : "Ocupada"}</span></a>;
+              })}
+            </div>
+            <h2 className="mb-4 text-sm font-bold">Mesas livres</h2>
+            <div className="app-grid">
+              {liveTables.filter(t => !liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => <a key={t.id} href="/comandas-online" className="table-box flex h-[88px] flex-col justify-start pt-1 text-center text-app-on-dark"><span className="text-[9px]">ABRIR</span><span className="mt-2 text-2xl font-bold">{t.number}</span></a>)}
+            </div>
+            {!liveTables.length && !liveError && <p className="text-sm">Nenhuma mesa cadastrada. Acesse Gestão para cadastrar.</p>}
+          </div> :
+          <div className="mb-3 border border-amber-300 bg-amber-50 p-3 text-xs">Modo de demonstração local. Mesas e pedidos abaixo não representam o caixa real. <a href="/gestao" className="underline">Entrar na Gestão</a></div>}
+        {liveTables === null && <>
+
         <section className="mb-6">
           <h1 className="mb-4 text-sm font-bold text-app-text">Pedidos em Andamento ({ongoingCount} de {ongoingCount})</h1>
           <div className="flex flex-wrap gap-4">
@@ -208,6 +261,7 @@ function Index() {
             ))}
           </div>
         </section>
+        </>}
       </main>
 
       <footer className="relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
