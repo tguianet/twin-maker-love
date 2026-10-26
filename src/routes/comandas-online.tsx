@@ -138,6 +138,10 @@ function SharedOrdersPage() {
   };
   const settleOrder = async (order: Order) => {
     if (!client || settling || order.status !== "closing") return;
+    const { data: openCash, error: cashError } = await client.from("cash_sessions")
+      .select("id").eq("organization_id", org).is("closed_at", null).limit(1);
+    if (cashError) { setError("Não foi possível verificar o caixa: " + cashError.message); return; }
+    if (!openCash?.length) { setError("Abra o caixa na tela principal antes de confirmar o pagamento."); return; }
     const method = payMethod[order.id] || "cash";
     const subtotal = order.order_items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unit_price), 0);
     const total = Math.round(subtotal * (1 + serviceRate / 100) * 100) / 100;
