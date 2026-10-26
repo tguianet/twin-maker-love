@@ -89,6 +89,7 @@ function Index() {
   const [supabase,setSupabase] = useState<SupabaseClient|null>(null);
   const [selectedLiveTable, setSelectedLiveTable] = useState<{id:string;number:number}|null>(null);
   const [liveBusy, setLiveBusy] = useState(false);
+  const [liveLoadFailed, setLiveLoadFailed] = useState(false);
   const [liveNotice, setLiveNotice] = useState("");
   const [liveProducts, setLiveProducts] = useState<{id:string;name:string;sale_price:number}[]>([]);
   const [liveSelectedProduct, setLiveSelectedProduct] = useState("");
@@ -150,7 +151,7 @@ function Index() {
 
   const openLiveTable = async (table:{id:string;number:number}) => {
     if (!liveOrg || !supabase) return;
-    setSelectedLiveTable(table); setLiveBusy(true); setLiveNotice("");
+    setSelectedLiveTable(table); setLiveBusy(true); setLiveNotice(""); setLiveLoadFailed(false);
     setLiveOrder(null); setLiveItems([]); setLiveSelectedProduct(""); setLiveQty(1);
     try {
       const [orderResult,productResult,orgResult] = await Promise.all([
@@ -167,11 +168,11 @@ function Index() {
         .select("table_id,status,customer_name").eq("organization_id",liveOrg).in("status",["open","closing"]);
       if (refreshError) throw refreshError;
       setLiveOrders(currentOrders || []);
-    } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Erro ao consultar mesa."); }
+    } catch(e) { setLiveLoadFailed(true); setLiveNotice(e instanceof Error ? e.message : "Erro ao consultar mesa."); }
     finally { setLiveBusy(false); }
   };
   const saveLiveOrder = async () => {
-    if (!selectedLiveTable || !liveOrg || !supabase || liveBusy) return;
+    if (!selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed) return;
     setLiveBusy(true); setLiveNotice("");
     try {
       if (!liveOrder) {
@@ -190,7 +191,7 @@ function Index() {
     finally { setLiveBusy(false); }
   };
   const sendLiveOrderToCashier = async () => {
-    if (!liveOrder || !selectedLiveTable || !liveOrg || !supabase || liveBusy || liveOrder.status !== "open") return;
+    if (!liveOrder || !selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed || liveOrder.status !== "open") return;
     if (liveItems.length === 0) { setLiveNotice("Adicione um produto antes de encaminhar ao caixa."); return; }
     setLiveBusy(true); setLiveNotice("");
     try {
@@ -349,7 +350,7 @@ function Index() {
             <p className="text-right font-bold">Total com serviço ({liveRate}%): {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(liveItems.reduce((n,i)=>n+i.quantity*i.unit_price,0)*(1+liveRate/100))}</p>
             {liveOrder?.status === "open" && liveProducts.length===0 && <p className="border border-amber-300 bg-amber-50 p-2">Não há produtos ativos no cadastro real. Verifique em Gestão.</p>}
             {liveOrder?.status === "open" && <div className="flex gap-2"><select aria-label="Produto" className="min-w-0 flex-1 border p-2" value={liveSelectedProduct} onChange={e=>setLiveSelectedProduct(e.target.value)}><option value="">Selecionar produto</option>{liveProducts.map(p=><option key={p.id} value={p.id}>{p.name} · {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(p.sale_price))}</option>)}</select><input aria-label="Quantidade" type="number" min={1} max={100} className="w-16 border p-2" value={liveQty} onChange={e=>setLiveQty(Number(e.target.value))} /></div>}
-            <div className="flex justify-end gap-2 border-t pt-3">{liveOrder?.status === "open" && <button type="button" onClick={() => void sendLiveOrderToCashier()} disabled={liveBusy || liveItems.length === 0} className="border bg-[#e9eff5] px-4 py-2 disabled:opacity-50">Encaminhar ao caixa</button>}<a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border bg-[#e9eff5] px-4 py-2">Abrir caixa</a>{(!liveOrder || liveOrder.status === "open") && <button disabled={liveBusy || (!!liveOrder && (!liveSelectedProduct || !Number.isInteger(liveQty) || liveQty<1 || liveQty>100))} onClick={() => void saveLiveOrder()} className="bg-[#315976] px-4 py-2 font-bold text-white disabled:opacity-50">{liveBusy ? "Salvando..." : liveOrder ? "Adicionar produto" : "Abrir comanda"}</button>}</div>
+            <div className="flex justify-end gap-2 border-t pt-3">{liveOrder?.status === "open" && <button type="button" onClick={() => void sendLiveOrderToCashier()} disabled={liveBusy || liveItems.length === 0} className="border bg-[#e9eff5] px-4 py-2 disabled:opacity-50">Encaminhar ao caixa</button>}<a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border bg-[#e9eff5] px-4 py-2">Abrir caixa</a>{(!liveOrder || liveOrder.status === "open") && <button disabled={liveBusy || liveLoadFailed || (!!liveOrder && (!liveSelectedProduct || !Number.isInteger(liveQty) || liveQty<1 || liveQty>100))} onClick={() => void saveLiveOrder()} className="bg-[#315976] px-4 py-2 font-bold text-white disabled:opacity-50">{liveBusy ? "Salvando..." : liveOrder ? "Adicionar produto" : "Abrir comanda"}</button>}</div>
           </div>
         </section>
       </div>}
