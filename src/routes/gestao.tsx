@@ -28,6 +28,7 @@ function Gestao() {
   const [tab, setTab] = useState<"produtos" | "geladeira" | "mesas">("produtos");
   const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [tableNumber, setTableNumber] = useState("");
+  const [tableEnd, setTableEnd] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(empty);
@@ -161,10 +162,20 @@ function Gestao() {
       setError("Informe um número de mesa inteiro de 1 a 9999."); return;
     }
     setBusy(true); setError(""); setNotice("");
-    const { error: failure } = await client.from("restaurant_tables").insert({ organization_id: orgId, number });
+    const end = tableEnd.trim() ? Number(tableEnd) : number;
+    if (!Number.isSafeInteger(end) || end < number || end > 9999 || end - number > 99) {
+      setBusy(false); setError("Informe um intervalo válido de até 100 mesas."); return;
+    }
+    const candidates = Array.from({ length: end - number + 1 }, (_, i) => number + i);
+    const existing = new Set(tables.map(t => t.number));
+    const toCreate = candidates.filter(n => !existing.has(n));
+    if (toCreate.length === 0) {
+      setBusy(false); setNotice("Todas essas mesas já estão cadastradas."); return;
+    }
+    const { error: failure } = await client.from("restaurant_tables").insert(toCreate.map(n => ({ organization_id: orgId, number: n })));
     setBusy(false);
-    if (failure) { setError(failure.code === "23505" ? "Esta mesa já está cadastrada." : failure.message); return; }
-    setTableNumber(""); setNotice("Mesa cadastrada."); await loadData();
+    if (failure) { setError(failure.code === "23505" ? "Alguma mesa foi cadastrada simultaneamente. Atualize os dados." : failure.message); return; }
+    setTableNumber(""); setTableEnd(""); setNotice(toCreate.length + " mesa(s) cadastrada(s)."); await loadData();
   }
   async function addCategory(event: FormEvent) {
     event.preventDefault();
@@ -220,7 +231,7 @@ function Gestao() {
               <button className={btn + (tab === "mesas" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("mesas")}>Mesas e Categorias</button>
             </nav>
             {tab === "mesas" ? <div className="grid gap-5 lg:grid-cols-2">
-              <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="font-bold">Cadastrar mesas</h2><form onSubmit={addTable} className="flex gap-2"><input aria-label="Número da mesa" type="number" min={1} max={9999} required className={field} value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="Número da mesa" /><button disabled={busy || !orgId} className={btn}>Cadastrar</button></form><p className="text-sm">{tables.length} mesas cadastradas</p><div className="flex flex-wrap gap-2">{tables.map(t => <span key={t.id} className="rounded border bg-[#e9eff5] px-3 py-2 text-sm">Mesa {t.number}</span>)}</div></section>
+              <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="font-bold">Cadastrar mesas</h2><form onSubmit={addTable} className="flex gap-2"><input aria-label="Número da mesa" type="number" min={1} max={9999} required className={field} value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="Mesa inicial" /><input aria-label="Mesa final opcional" type="number" min={1} max={9999} className={field} value={tableEnd} onChange={e => setTableEnd(e.target.value)} placeholder="Final (opcional)" /><button disabled={busy || !orgId} className={btn}>Cadastrar</button></form><p className="text-sm">{tables.length} mesas cadastradas</p><div className="flex flex-wrap gap-2">{tables.map(t => <span key={t.id} className="rounded border bg-[#e9eff5] px-3 py-2 text-sm">Mesa {t.number}</span>)}</div></section>
               <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="font-bold">Categorias de produtos</h2><form onSubmit={addCategory} className="flex gap-2"><input aria-label="Nome da categoria" maxLength={100} required className={field} value={categoryName} onChange={e => setCategoryName(e.target.value)} placeholder="Ex.: Bebidas" /><button disabled={busy || !orgId} className={btn}>Cadastrar</button></form><div className="flex flex-wrap gap-2">{categories.map(c => <span key={c.id} className="rounded border bg-[#e9eff5] px-3 py-2 text-sm">{c.name}</span>)}</div></section>
             </div> : tab === "produtos" ? <div className="grid gap-5 lg:grid-cols-[350px_1fr]">
               <form onSubmit={saveProduct} className="space-y-3 border border-[#c4d0da] bg-white p-4">
