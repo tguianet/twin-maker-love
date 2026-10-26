@@ -74,6 +74,15 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
   const [catalogMode, setCatalogMode] = useState<"example" | "database">("example");
   const [catalogError, setCatalogError] = useState("");
   const [addedMessage, setAddedMessage] = useState("");
+  useEffect(() => {
+    if (!open || !addedMessage) return;
+    const timeout = window.setTimeout(() => setAddedMessage(""), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [open, addedMessage]);
+  useEffect(() => {
+    if (!open) return;
+    return () => setAddedMessage("");
+  }, [open]);
   const confirmAdd = (product: OrderProduct) => {
     if (onAdd(product) !== false) setAddedMessage(`${product.name} adicionado à comanda com sucesso.`);
   };
