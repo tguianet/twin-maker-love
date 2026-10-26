@@ -20,7 +20,8 @@ jobs:
       - name: Production build
         run: bun run build
       - name: Functional lint (exclude existing formatting debt)
-        run: bunx eslint . --rule 'prettier/prettier: off'
+        run: |
+          bunx eslint . --rule 'prettier/prettier: off'
       - name: Full lint report (non-blocking formatting debt)
         continue-on-error: true
         run: bun run lint
