@@ -1,0 +1,196 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export const Route = createFileRoute("/gestao")({ component: Gestao });
+type Org = { id: string; name: string };
+type Category = { id: string; name: string };
+type Product = { id: string; code: string | null; name: string; sale_price: number; active: boolean; category_id: string | null };
+type Stock = { product_id: string; quantity: number };
+const currency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+const btn = "rounded-sm border border-[#b8c4d1] bg-[#e9eff5] px-3 py-2 text-sm font-semibold text-[#223a50] hover:bg-[#d7e6f3] disabled:opacity-50";
+const field = "w-full rounded-sm border border-[#aebcca] bg-white p-2 text-sm text-[#202f3d]";
+const empty = { code: "", name: "", sale_price: "", category_id: "", active: true };
+
+function Gestao() {
+  const [client, setClient] = useState<SupabaseClient | null>(null);
+  const [connectionError, setConnectionError] = useState("");
+  const [userId, setUserId] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [organizations, setOrganizations] = useState<Org[]>([]);
+  const [orgId, setOrgId] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [tab, setTab] = useState<"produtos" | "geladeira">("produtos");
+  const [query, setQuery] = useState("");
+  const [form, setForm] = useState(empty);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [movement, setMovement] = useState({ product_id: "", quantity: "1", note: "" });
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    import("../lib/supabase")
+      .then(async ({ supabase }) => {
+        if (!active) return;
+        setClient(supabase);
+        const { data } = await supabase.auth.getUser();
+        if (active) setUserId(data.user?.id || "");
+      })
+      .catch(() => { if (active) setConnectionError("Supabase não configurado. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para usar dados reais."); });
+    return () => { active = false; };
+  }, []);
+
+  const loadOrganizations = useCallback(async () => {
+    if (!client || !userId) return;
+    const { data, error: failure } = await client.from("organization_members")
+      .select("organization_id, organizations(id,name)").eq("user_id", userId).eq("active", true);
+    if (failure) { setError(failure.message); return; }
+    const found = (data || []).flatMap((row) => {
+      const joined = row.organizations as unknown as Org | Org[] | null;
+      return joined ? (Array.isArray(joined) ? joined : [joined]) : [];
+    });
+    setOrganizations(found);
+    setOrgId((old) => found.some((org) => org.id === old) ? old : found[0]?.id || "");
+  }, [client, userId]);
+
+  const loadData = useCallback(async () => {
+    if (!client || !orgId) return;
+    const [cats, items, inventory] = await Promise.all([
+      client.from("product_categories").select("id,name").eq("organization_id", orgId).order("name"),
+      client.from("products").select("id,code,name,sale_price,active,category_id").eq("organization_id", orgId).order("name"),
+      client.from("refrigerator_stock").select("product_id,quantity").eq("organization_id", orgId),
+    ]);
+    if (cats.error || items.error) { setError(cats.error?.message || items.error?.message || "Erro ao carregar produtos"); return; }
+    setCategories((cats.data || []) as Category[]);
+    setProducts((items.data || []) as Product[]);
+    if (inventory.error) { setStocks([]); } else setStocks((inventory.data || []) as Stock[]);
+  }, [client, orgId]);
+
+  useEffect(() => { void loadOrganizations(); }, [loadOrganizations]);
+  useEffect(() => { void loadData(); }, [loadData]);
+
+  async function login(event: FormEvent) {
+    event.preventDefault();
+    if (!client) return;
+    setBusy(true); setError("");
+    const result = await client.auth.signInWithPassword({ email, password });
+    if (result.error) setError(result.error.message);
+    else setUserId(result.data.user.id);
+    setBusy(false);
+  }
+  async function logout() {
+    await client?.auth.signOut();
+    setUserId(""); setOrganizations([]); setOrgId(""); setProducts([]); setStocks([]);
+  }
+  async function saveProduct(event: FormEvent) {
+    event.preventDefault();
+    if (!client || !orgId || !form.name.trim()) return;
+    const value = Number(form.sale_price.replace(",", "."));
+    if (!Number.isFinite(value) || value < 0) { setError("Informe um preço válido."); return; }
+    const code = form.code.trim() || null;
+    if (code && products.some((p) => p.code === code && p.id !== editing)) { setError("Este código já está cadastrado."); return; }
+    setBusy(true); setError(""); setNotice("");
+    const payload = { organization_id: orgId, code, name: form.name.trim(), sale_price: value, category_id: form.category_id || null, active: form.active };
+    const result = editing
+      ? await client.from("products").update(payload).eq("id", editing).eq("organization_id", orgId)
+      : await client.from("products").insert(payload);
+    setBusy(false);
+    if (result.error) { setError(result.error.message); return; }
+    setNotice(editing ? "Produto atualizado." : "Produto cadastrado.");
+    setForm(empty); setEditing(null); await loadData();
+  }
+  async function toggleProduct(product: Product) {
+    if (!client) return;
+    setBusy(true); setError("");
+    const result = await client.from("products").update({ active: !product.active })
+      .eq("id", product.id).eq("organization_id", orgId);
+    setBusy(false);
+    if (result.error) setError(result.error.message);
+    else await loadData();
+  }
+  async function moveStock(event: FormEvent) {
+    event.preventDefault();
+    if (!client || !orgId || !movement.product_id) return;
+    const qty = Number(movement.quantity.replace(",", "."));
+    if (!Number.isInteger(qty) || qty === 0) { setError("Informe uma quantidade inteira diferente de zero."); return; }
+    setBusy(true); setError(""); setNotice("");
+    const { error: failure } = await client.rpc("register_refrigerator_movement", {
+      p_organization_id: orgId, p_product_id: movement.product_id,
+      p_delta: qty, p_note: movement.note.trim() || null,
+    });
+    setBusy(false);
+    if (failure) { setError(failure.message); return; }
+    setMovement({ product_id: "", quantity: "1", note: "" });
+    setNotice("Movimentação registrada com sucesso."); await loadData();
+  }
+  const visible = products.filter(p => [p.name, p.code || ""].some(v => v.toLowerCase().includes(query.toLowerCase())));
+  return (
+    <div className="min-h-screen bg-[#f3f6f9] text-[#233448]">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#b9c5d0] bg-[#e3eaf1] px-5 py-3">
+        <div><strong className="text-lg">TGuia Food</strong><span className="ml-3 text-sm">Gestão de Produtos e Geladeira</span></div>
+        <div className="flex items-center gap-3"><a href="/" className={btn}>Voltar às mesas</a>{userId && <button className={btn} onClick={logout}>Sair</button>}</div>
+      </header>
+      <main className="mx-auto max-w-6xl p-5">
+        {connectionError && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3">{connectionError}</p>}
+        {error && <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 p-3">{error}</p>}
+        {notice && <p role="status" className="mb-4 rounded border border-green-300 bg-green-50 p-3">{notice}</p>}
+        {!userId ? (
+          <form onSubmit={login} className="mx-auto mt-16 max-w-md space-y-4 border border-[#c2ced9] bg-white p-6">
+            <h1 className="text-xl font-semibold">Acesso à gestão</h1>
+            <p className="text-sm text-slate-600">Entre com um usuário autorizado do seu restaurante no Supabase.</p>
+            <label className="block text-sm">E-mail<input className={field} type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></label>
+            <label className="block text-sm">Senha<input className={field} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label>
+            <button disabled={busy || !client} className={btn}>Entrar</button>
+          </form>
+        ) : (
+          <>
+            <div className="mb-5 flex flex-wrap items-center gap-4">
+              <label className="text-sm font-semibold">Restaurante
+                <select className={field} value={orgId} onChange={e => setOrgId(e.target.value)}>
+                  {organizations.length === 0 && <option value="">Sem estabelecimento vinculado</option>}
+                  {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+              </label>
+              <button className={btn} onClick={() => void loadData()} disabled={!orgId}>Atualizar dados</button>
+            </div>
+            <nav className="mb-5 flex gap-2 border-b border-[#acbac8] pb-2">
+              <button className={btn + (tab === "produtos" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("produtos")}>Produtos</button>
+              <button className={btn + (tab === "geladeira" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("geladeira")}>Geladeira / Estoque</button>
+            </nav>
+            {tab === "produtos" ? <div className="grid gap-5 lg:grid-cols-[350px_1fr]">
+              <form onSubmit={saveProduct} className="space-y-3 border border-[#c4d0da] bg-white p-4">
+                <h2 className="font-bold">{editing ? "Editar produto" : "Novo produto"}</h2>
+                <label className="block text-sm">Código<input className={field} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} maxLength={80} /></label>
+                <label className="block text-sm">Nome<input className={field} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} maxLength={200} required /></label>
+                <label className="block text-sm">Preço de venda<input className={field} inputMode="decimal" value={form.sale_price} onChange={e => setForm({ ...form, sale_price: e.target.value })} required /></label>
+                <label className="block text-sm">Categoria<select className={field} value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })}><option value="">Sem categoria</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} /> Produto ativo</label>
+                <div className="flex gap-2"><button className={btn} disabled={busy || !orgId}>Salvar produto</button><button type="button" className={btn} onClick={() => { setForm(empty); setEditing(null); }}>Limpar</button></div>
+              </form>
+              <section className="min-w-0 border border-[#c4d0da] bg-white p-4">
+                <h2 className="mb-3 font-bold">Produtos cadastrados ({products.length})</h2>
+                <input className={field} aria-label="Buscar produtos" placeholder="Buscar por nome ou código" value={query} onChange={e => setQuery(e.target.value)} />
+                <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-[#e7edf3]"><tr><th className="p-2">Código</th><th className="p-2">Produto</th><th className="p-2">Preço</th><th className="p-2">Situação</th><th className="p-2">Ações</th></tr></thead><tbody>{visible.map(p => <tr className="border-b" key={p.id}><td className="p-2">{p.code || "—"}</td><td className="p-2">{p.name}</td><td className="p-2">{currency(Number(p.sale_price))}</td><td className="p-2">{p.active ? "Ativo" : "Inativo"}</td><td className="whitespace-nowrap p-2"><button className={btn} onClick={() => { setEditing(p.id); setForm({ code: p.code || "", name: p.name, sale_price: String(p.sale_price), category_id: p.category_id || "", active: p.active }); }}>Editar</button> <button disabled={busy} className={btn} onClick={() => void toggleProduct(p)}>{p.active ? "Desativar" : "Ativar"}</button></td></tr>)}</tbody></table>{visible.length === 0 && <p className="p-4 text-sm">Nenhum produto encontrado.</p>}</div>
+              </section>
+            </div> : <div className="grid gap-5 lg:grid-cols-[350px_1fr]">
+              <form onSubmit={moveStock} className="space-y-3 border border-[#c4d0da] bg-white p-4">
+                <h2 className="font-bold">Movimentar estoque da geladeira</h2>
+                <p className="text-xs text-slate-600">Entrada: quantidade positiva. Retirada: quantidade negativa. O banco bloqueia estoque negativo.</p>
+                <label className="block text-sm">Produto<select required className={field} value={movement.product_id} onChange={e => setMovement({ ...movement, product_id: e.target.value })}><option value="">Selecione</option>{products.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                <label className="block text-sm">Quantidade (+ entrada / - saída)<input className={field} type="number" step="1" value={movement.quantity} onChange={e => setMovement({ ...movement, quantity: e.target.value })} required /></label>
+                <label className="block text-sm">Observação<input className={field} value={movement.note} onChange={e => setMovement({ ...movement, note: e.target.value })} maxLength={250} /></label>
+                <button disabled={busy || !orgId} className={btn}>Registrar movimentação</button>
+              </form>
+              <section className="border border-[#c4d0da] bg-white p-4"><h2 className="mb-3 font-bold">Saldo atual na geladeira</h2><table className="w-full text-sm"><thead className="bg-[#e7edf3]"><tr><th className="p-2 text-left">Produto</th><th className="p-2 text-right">Unidades</th></tr></thead><tbody>{products.filter(p => p.active).map(p => <tr key={p.id} className="border-b"><td className="p-2">{p.name}</td><td className="p-2 text-right">{stocks.find(s => s.product_id === p.id)?.quantity ?? 0}</td></tr>)}</tbody></table><p className="mt-4 text-xs text-slate-500">O controle atual é manual. Integração física com sensores ou automação depende do modelo da geladeira e de um dispositivo compatível.</p></section>
+            </div>}
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
