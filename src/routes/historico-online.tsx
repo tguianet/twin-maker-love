@@ -47,6 +47,20 @@ function ClosedOrders() {
     void load();
     return () => { active = false; };
   }, [client, org]);
+  const exportCsv = () => {
+    if (!orders.length || !org) return;
+    const rows = [["comanda","cliente","fechamento","metodo","valor"]];
+    for (const order of orders) {
+      for (const payment of order.order_payments) {
+        rows.push([String(order.order_number), order.customer_name || "", order.closed_at || "", payment.method, Number(payment.amount).toFixed(2)]);
+      }
+    }
+    const csv = "\uFEFF" + rows.map(row => row.map(value => '"' + String(value).replace(/"/g, '""') + '"').join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = "tguia-food-caixa.csv"; link.click();
+    URL.revokeObjectURL(url);
+  };
   const total = orders.reduce((sum, o) => sum + o.order_payments.reduce((n, p) => n + Number(p.amount), 0), 0);
   return <main className="min-h-screen bg-[#f3f6f9] p-5 text-[#273142]">
     <div className="mx-auto max-w-5xl">
@@ -54,7 +68,7 @@ function ClosedOrders() {
       <p className="mb-4 bg-blue-50 p-3 text-sm">Somente as últimas 200 comandas fechadas. Valores de pagamentos registrados no Supabase; não comprova compensação externa de Pix ou cartão.</p>
       {error && <p role="alert" className="mb-4 border border-red-300 bg-red-50 p-3">{error}</p>}
       <select aria-label="Restaurante" className="mb-4 border bg-white p-2" value={org} onChange={e => {setOrg(e.target.value); setOrders([]);}}><option value="">Selecione o restaurante</option>{orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select>
-      <div className="mb-4 border bg-white p-4"><strong>{orders.length} comandas fechadas</strong><p className="mt-2 text-lg font-bold">Recebimentos registrados: {money(total)}</p></div>
+      <div className="mb-4 border bg-white p-4"><button type="button" disabled={!orders.length || busy} onClick={exportCsv} className="float-right border bg-[#e9eff5] px-3 py-2 text-sm font-semibold disabled:opacity-50">Exportar CSV</button><strong>{orders.length} comandas fechadas</strong><p className="mt-2 text-lg font-bold">Recebimentos registrados: {money(total)}</p></div>
       {busy && <p>Carregando histórico...</p>}
       <div className="space-y-3">{orders.map(o => <section className="border bg-white p-4" key={o.id}><div className="flex justify-between gap-3"><strong>Comanda #{o.order_number}</strong><strong>{money(o.order_payments.reduce((n,p) => n + Number(p.amount),0))}</strong></div><p className="mt-1 text-sm">{o.customer_name || "Sem cliente"} · {o.closed_at ? new Date(o.closed_at).toLocaleString("pt-BR") : "Sem data de fechamento"}</p><ul className="mt-2 text-sm">{o.order_payments.map(p => <li key={p.id}>{p.method}: {money(Number(p.amount))}</li>)}</ul></section>)}</div>
     </div>
