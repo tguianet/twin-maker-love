@@ -32,13 +32,11 @@ function SharedOrdersPage() {
   useEffect(() => {
     let cancelled = false;
     async function init() {
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-        setError("Supabase não configurado neste ambiente."); setAuthReady(true); return;
-      }
       try {
         const { supabase } = await import("../lib/supabase");
         if (cancelled) return;
         setClient(supabase);
+        setRpcAvailable(supabase.supabaseUrl === "https://eqelwfhiizigduybtkxh.supabase.co");
         const { data: userResult, error: userError } = await supabase.auth.getUser();
         if (userError) throw userError;
         if (!userResult.user) { setError("Entre no sistema pela Gestão para consultar as comandas compartilhadas."); return; }
@@ -73,8 +71,6 @@ function SharedOrdersPage() {
       setOrders((ordersResult.data || []) as Order[]);
       setTables(Object.fromEntries((tablesResult.data || []).map(t => [t.id, t.number])));
       setProducts((productsResult.data || []) as { id: string; name: string; sale_price: number }[]);
-      // Keep shared item writes disabled until the server function has been verified in homologation.
-      setRpcAvailable(false);
     } catch (err) { setError(err instanceof Error ? err.message : "Falha ao consultar comandas."); }
     finally { setLoading(false); }
   };
@@ -102,7 +98,7 @@ function SharedOrdersPage() {
         if (createError.code === "23505") throw new Error("Já existe uma comanda aberta para esta mesa. Atualize a lista.");
         throw createError;
       }
-      setMessage("Comanda #" + data.order_number + " aberta no Supabase. Adição de itens será habilitada após homologação.");
+      setMessage("Comanda #" + data.order_number + " aberta no Supabase.");
       setSelectedTableId(""); setNewCustomerName("");
       await refresh();
     } catch (err) {
@@ -145,7 +141,7 @@ function SharedOrdersPage() {
         </select>
         <button disabled={!org || loading} onClick={() => void refresh()} className="border bg-white px-4 py-2 font-semibold disabled:opacity-50">{loading ? "Consultando..." : "Atualizar consulta"}</button>
       </div>
-      {!rpcAvailable && !!org && <p className="mb-3 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Lançamento online de produtos desativado até validar a função add_order_product em um banco exclusivo do TGuia Food. A consulta continua disponível.</p>}
+      {!rpcAvailable && !!org && <p className="mb-3 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Lançamento de produtos disponível apenas quando conectado ao Supabase exclusivo TGuia Food. A consulta continua disponível.</p>}
       {message && <p role="status" className="mb-3 border border-green-200 bg-green-50 p-3 text-sm">{message}</p>}
       {!!org && <section className="mb-5 rounded border border-[#c4d0da] bg-white p-4">
         <h2 className="mb-2 font-bold">Abrir nova comanda no Supabase</h2>
