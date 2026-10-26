@@ -23,6 +23,7 @@ function SharedOrdersPage() {
   const [selectedTableId, setSelectedTableId] = useState("");
   const [newCustomerName, setNewCustomerName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [serviceRate, setServiceRate] = useState(0);
   const [products, setProducts] = useState<{ id: string; name: string; sale_price: number }[]>([]);
   const [selection, setSelection] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState<Record<string, number>>({});
@@ -60,15 +61,18 @@ function SharedOrdersPage() {
     if (!client || !org) return;
     setLoading(true); setError("");
     try {
-      const [ordersResult, tablesResult, productsResult] = await Promise.all([
+      const [ordersResult, tablesResult, productsResult, organizationResult] = await Promise.all([
         client.from("orders").select("id, order_number, status, customer_name, opened_at, table_id, order_items(id, product_name, quantity, unit_price)")
           .eq("organization_id", org).in("status", ["open", "closing"]).order("opened_at", { ascending: false }).limit(200),
         client.from("restaurant_tables").select("id, number").eq("organization_id", org),
         client.from("products").select("id, name, sale_price").eq("organization_id", org).eq("active", true).order("name").limit(500),
+        client.from("organizations").select("service_rate").eq("id", org).single(),
       ]);
       if (ordersResult.error) throw ordersResult.error;
       if (tablesResult.error) throw tablesResult.error;
       if (productsResult.error) throw productsResult.error;
+      if (organizationResult.error) throw organizationResult.error;
+      setServiceRate(Number(organizationResult.data?.service_rate || 0));
       setOrders((ordersResult.data || []) as Order[]);
       setTables(Object.fromEntries((tablesResult.data || []).map(t => [t.id, t.number])));
       setProducts((productsResult.data || []) as { id: string; name: string; sale_price: number }[]);
@@ -178,10 +182,13 @@ function SharedOrdersPage() {
       {authReady && !!org && orders.length === 0 && !loading && !error && <p className="p-4 text-sm">Nenhuma comanda aberta encontrada.</p>}
       <div className="space-y-3">{orders.map(order => {
         const subtotal = order.order_items.reduce((n, item) => n + item.quantity * item.unit_price, 0);
+        const service = Math.round(subtotal * serviceRate) / 100;
+        const total = Math.round((subtotal + service) * 100) / 100;
         return <section key={order.id} className="rounded border border-[#c4d0da] bg-white p-4">
-          <div className="flex flex-wrap justify-between gap-3"><strong>Pedido #{order.order_number} {order.table_id ? "· Mesa " + (tables[order.table_id] || "?") : ""}</strong><span>{order.status === "closing" ? "Em fechamento" : "Aberto"} · {money(subtotal)} (sem taxa)</span></div>
+          <div className="flex flex-wrap justify-between gap-3"><strong>Pedido #{order.order_number} {order.table_id ? "· Mesa " + (tables[order.table_id] || "?") : ""}</strong><span>{order.status === "closing" ? "Em fechamento" : "Aberto"} · {money(total)}</span></div>
           <p className="mt-1 text-sm text-slate-600">{order.customer_name || "Cliente não informado"} · {new Date(order.opened_at).toLocaleString("pt-BR")}</p>
           <ul className="mt-2 text-sm">{order.order_items.map(item => <li key={item.id}>{item.quantity}× {item.product_name} — {money(item.unit_price)}</li>)}</ul>
+          <div className="mt-3 rounded border bg-[#f3f6f9] p-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div><div className="flex justify-between"><span>Serviço ({serviceRate}%)</span><span>{money(service)}</span></div><div className="flex justify-between border-t pt-2 font-bold"><span>Total a receber</span><span>{money(total)}</span></div><p className="mt-2 text-xs text-slate-600">Resumo para conferência. Não registra pagamento ou baixa financeira.</p></div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button type="button" disabled={changingStatus !== null || addingTo !== null} onClick={() => void changeOrderStatus(order.id, order.status)}
               className="border border-[#a9bbc8] bg-[#e9eff5] px-3 py-2 text-sm font-semibold disabled:opacity-50">
