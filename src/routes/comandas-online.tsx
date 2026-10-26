@@ -23,6 +23,7 @@ function SharedOrdersPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedTableId, setSelectedTableId] = useState("");
+  const [requestedTableId] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("mesa") || "");
   const [newCustomerName, setNewCustomerName] = useState("");
   const [saving, setSaving] = useState(false);
   const [serviceRate, setServiceRate] = useState(0);
@@ -78,7 +79,9 @@ function SharedOrdersPage() {
       if (organizationResult.error) throw organizationResult.error;
       setServiceRate(Number(organizationResult.data?.service_rate || 0));
       setOrders((ordersResult.data || []) as Order[]);
-      setTables(Object.fromEntries((tablesResult.data || []).map(t => [t.id, t.number])));
+      const availableTables = Object.fromEntries((tablesResult.data || []).map(t => [t.id, t.number]));
+      setTables(availableTables);
+      if (requestedTableId && Object.prototype.hasOwnProperty.call(availableTables, requestedTableId)) setSelectedTableId(requestedTableId);
       setProducts((productsResult.data || []) as { id: string; name: string; sale_price: number }[]);
     } catch (err) { setError(err instanceof Error ? err.message : "Falha ao consultar comandas."); }
     finally { setLoading(false); }
@@ -201,7 +204,7 @@ function SharedOrdersPage() {
       </section>}
       {authReady && !!org && orders.length === 0 && !loading && !error && <p className="p-4 text-sm">Nenhuma comanda aberta encontrada.</p>}
       <div className="mb-4 flex flex-wrap gap-3 border bg-white p-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={showClosingOnly} onChange={e => setShowClosingOnly(e.target.checked)} /> Somente aguardando caixa</label><input aria-label="Buscar comanda" className="min-w-[200px] flex-1 border p-2" placeholder="Buscar número, mesa ou cliente" value={orderSearch} onChange={e => setOrderSearch(e.target.value)} /><span className="self-center">{orders.filter(o => o.status === "closing").length} aguardando caixa</span></div>
-      <div className="space-y-3">{orders.filter(order => (!showClosingOnly || order.status === "closing") && (!orderSearch.trim() || [String(order.order_number), order.customer_name || "", order.table_id ? String(tables[order.table_id] || "") : ""].some(value => value.toLocaleLowerCase("pt-BR").includes(orderSearch.trim().toLocaleLowerCase("pt-BR"))))).map(order => {
+      <div className="space-y-3">{orders.filter(order => (!showClosingOnly || order.status === "closing") && (!requestedTableId || order.table_id === requestedTableId) && (!orderSearch.trim() || [String(order.order_number), order.customer_name || "", order.table_id ? String(tables[order.table_id] || "") : ""].some(value => value.toLocaleLowerCase("pt-BR").includes(orderSearch.trim().toLocaleLowerCase("pt-BR"))))).map(order => {
         const subtotal = order.order_items.reduce((n, item) => n + item.quantity * item.unit_price, 0);
         const service = Math.round(subtotal * serviceRate) / 100;
         const total = Math.round((subtotal + service) * 100) / 100;
