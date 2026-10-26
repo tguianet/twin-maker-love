@@ -7,6 +7,7 @@ type Org = { id: string; name: string };
 type Category = { id: string; name: string };
 type Product = { id: string; code: string | null; name: string; sale_price: number; active: boolean; category_id: string | null };
 type Stock = { product_id: string; quantity: number };
+type RestaurantTable = { id: string; number: number; name: string | null };
 const currency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const btn = "rounded-sm border border-[#b8c4d1] bg-[#e9eff5] px-3 py-2 text-sm font-semibold text-[#223a50] hover:bg-[#d7e6f3] disabled:opacity-50";
 const field = "w-full rounded-sm border border-[#aebcca] bg-white p-2 text-sm text-[#202f3d]";
@@ -24,7 +25,10 @@ function Gestao() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [tab, setTab] = useState<"produtos" | "geladeira">("produtos");
+  const [tab, setTab] = useState<"produtos" | "geladeira" | "mesas">("produtos");
+  const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [tableNumber, setTableNumber] = useState("");
+  const [categoryName, setCategoryName] = useState("");
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState<string | null>(null);
@@ -61,13 +65,15 @@ function Gestao() {
 
   const loadData = useCallback(async () => {
     if (!client || !orgId) return;
-    const [cats, items, inventory] = await Promise.all([
+    const [cats, items, inventory, tableRows] = await Promise.all([
       client.from("product_categories").select("id,name").eq("organization_id", orgId).order("name"),
       client.from("products").select("id,code,name,sale_price,active,category_id").eq("organization_id", orgId).order("name"),
       client.from("refrigerator_stock").select("product_id,quantity").eq("organization_id", orgId),
+      client.from("restaurant_tables").select("id,number,name").eq("organization_id", orgId).order("number"),
     ]);
-    if (cats.error || items.error) { setError(cats.error?.message || items.error?.message || "Erro ao carregar produtos"); return; }
+    if (cats.error || items.error || tableRows.error) { setError(cats.error?.message || items.error?.message || tableRows.error?.message || "Erro ao carregar dados"); return; }
     setCategories((cats.data || []) as Category[]);
+    setTables((tableRows.data || []) as RestaurantTable[]);
     setProducts((items.data || []) as Product[]);
     if (inventory.error) { setStocks([]); } else setStocks((inventory.data || []) as Stock[]);
   }, [client, orgId]);
@@ -104,7 +110,7 @@ function Gestao() {
   }
   async function logout() {
     await client?.auth.signOut();
-    setUserId(""); setOrganizations([]); setOrgId(""); setProducts([]); setStocks([]);
+    setUserId(""); setOrganizations([]); setOrgId(""); setProducts([]); setStocks([]); setTables([]);
   }
   async function saveProduct(event: FormEvent) {
     event.preventDefault();
@@ -146,6 +152,28 @@ function Gestao() {
     if (failure) { setError(failure.message); return; }
     setMovement({ product_id: "", quantity: "1", note: "" });
     setNotice("Movimentação registrada com sucesso."); await loadData();
+  }
+  async function addTable(event: FormEvent) {
+    event.preventDefault();
+    if (!client || !orgId || busy) return;
+    const number = Number(tableNumber);
+    if (!Number.isSafeInteger(number) || number < 1 || number > 9999) {
+      setError("Informe um número de mesa inteiro de 1 a 9999."); return;
+    }
+    setBusy(true); setError(""); setNotice("");
+    const { error: failure } = await client.from("restaurant_tables").insert({ organization_id: orgId, number });
+    setBusy(false);
+    if (failure) { setError(failure.code === "23505" ? "Esta mesa já está cadastrada." : failure.message); return; }
+    setTableNumber(""); setNotice("Mesa cadastrada."); await loadData();
+  }
+  async function addCategory(event: FormEvent) {
+    event.preventDefault();
+    if (!client || !orgId || busy || !categoryName.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    const { error: failure } = await client.from("product_categories").insert({ organization_id: orgId, name: categoryName.trim().slice(0, 100) });
+    setBusy(false);
+    if (failure) { setError(failure.message); return; }
+    setCategoryName(""); setNotice("Categoria cadastrada."); await loadData();
   }
   const visible = products.filter(p => [p.name, p.code || ""].some(v => v.toLowerCase().includes(query.toLowerCase())));
   return (
@@ -189,8 +217,12 @@ function Gestao() {
             <nav className="mb-5 flex gap-2 border-b border-[#acbac8] pb-2">
               <button className={btn + (tab === "produtos" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("produtos")}>Produtos</button>
               <button className={btn + (tab === "geladeira" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("geladeira")}>Geladeira / Estoque</button>
+              <button className={btn + (tab === "mesas" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("mesas")}>Mesas e Categorias</button>
             </nav>
-            {tab === "produtos" ? <div className="grid gap-5 lg:grid-cols-[350px_1fr]">
+            {tab === "mesas" ? <div className="grid gap-5 lg:grid-cols-2">
+              <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="font-bold">Cadastrar mesas</h2><form onSubmit={addTable} className="flex gap-2"><input aria-label="Número da mesa" type="number" min={1} max={9999} required className={field} value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="Número da mesa" /><button disabled={busy || !orgId} className={btn}>Cadastrar</button></form><p className="text-sm">{tables.length} mesas cadastradas</p><div className="flex flex-wrap gap-2">{tables.map(t => <span key={t.id} className="rounded border bg-[#e9eff5] px-3 py-2 text-sm">Mesa {t.number}</span>)}</div></section>
+              <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="font-bold">Categorias de produtos</h2><form onSubmit={addCategory} className="flex gap-2"><input aria-label="Nome da categoria" maxLength={100} required className={field} value={categoryName} onChange={e => setCategoryName(e.target.value)} placeholder="Ex.: Bebidas" /><button disabled={busy || !orgId} className={btn}>Cadastrar</button></form><div className="flex flex-wrap gap-2">{categories.map(c => <span key={c.id} className="rounded border bg-[#e9eff5] px-3 py-2 text-sm">{c.name}</span>)}</div></section>
+            </div> : tab === "produtos" ? <div className="grid gap-5 lg:grid-cols-[350px_1fr]">
               <form onSubmit={saveProduct} className="space-y-3 border border-[#c4d0da] bg-white p-4">
                 <h2 className="font-bold">{editing ? "Editar produto" : "Novo produto"}</h2>
                 <label className="block text-sm">Código<input className={field} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} maxLength={80} /></label>
