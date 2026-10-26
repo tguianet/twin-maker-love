@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ProductLocatorModal, type OrderProduct } from "./ProductLocatorModal";
+import { CustomerLinkModal, linkedCustomer, type LocalCustomer } from "./CustomerLinkModal";
 
 type SelectedTable = { number: string; occupied: boolean };
 type OrderItem = OrderProduct & { quantity: number };
@@ -55,6 +56,8 @@ function SmallIcon({ children, tone = "blue" }: { children: React.ReactNode; ton
 
 export function TableOrderModal() {
   const [selectedTable, setSelectedTable] = useState<SelectedTable | null>(null);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [customer, setCustomer] = useState<LocalCustomer | null>(null);
   const [productsOpen, setProductsOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [quickQuery, setQuickQuery] = useState("");
@@ -88,6 +91,8 @@ export function TableOrderModal() {
         .find((text) => /^\d{1,3}$/.test(text));
       if (!number) return;
       setSelectedTable({ number: number.padStart(2, "0"), occupied: table.classList.contains("table-box-active") });
+      setCustomer(linkedCustomer(number.padStart(2, "0")));
+      setCustomerModalOpen(false);
       setItems(getSavedItems(number.padStart(2, "0")));
       setProductsOpen(false);
       setQuickQuery("");
@@ -101,7 +106,7 @@ export function TableOrderModal() {
   }, []);
 
   useEffect(() => {
-    if (!selectedTable || productsOpen) return;
+    if (!selectedTable || productsOpen || customerModalOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         if (actionItemCode) setActionItemCode(null);
@@ -110,6 +115,10 @@ export function TableOrderModal() {
           setQuickQuery("");
           setQuickQuantity(1);
         } else setSelectedTable(null);
+      }
+      if (event.key === "F11") {
+        event.preventDefault();
+        setCustomerModalOpen(true);
       }
       if (event.key === "F3" && !isBlocked) {
         event.preventDefault();
@@ -122,7 +131,7 @@ export function TableOrderModal() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTable, productsOpen, quickProduct, actionItemCode, isBlocked]);
+  }, [selectedTable, productsOpen, customerModalOpen, quickProduct, actionItemCode, isBlocked]);
 
   useEffect(() => {
     if (!selectedTable) return;
@@ -181,6 +190,60 @@ export function TableOrderModal() {
     const query = value.trim().toLocaleLowerCase("pt-BR");
     if (query.length < 2) return null;
     return quickProducts.find((product) => product.name.toLocaleLowerCase("pt-BR").includes(query) || product.code === query) ?? null;
+  };
+
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("pix");
+  const [paymentError, setPaymentError] = useState("");
+
+  const finishLocalOrder = () => {
+    if (!selectedTable || items.length === 0) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(TABLE_ORDERS_KEY) || "{}");
+      const states = readTableStates();
+      const archiveKey = "tguia-food-closed-orders-v1";
+      const archive = JSON.parse(localStorage.getItem(archiveKey) || "[]");
+      archive.unshift({
+        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+        table: selectedTable.number,
+        items: items.map(item => ({ ...item })),
+        subtotal, service, total, paymentMethod,
+        customer: customer ? { id: customer.id, name: customer.name } : null,
+        closedAt: new Date().toISOString(),
+        mode: "local-demo",
+      });
+      const previousArchive = localStorage.getItem(archiveKey);
+      const previousOrders = localStorage.getItem(TABLE_ORDERS_KEY);
+      const previousStates = localStorage.getItem(TABLE_STATE_KEY);
+      delete saved[selectedTable.number];
+      delete states[selectedTable.number];
+      try {
+        localStorage.setItem(archiveKey, JSON.stringify(archive.slice(0, 500)));
+        localStorage.setItem(TABLE_ORDERS_KEY, JSON.stringify(saved));
+        localStorage.setItem(TABLE_STATE_KEY, JSON.stringify(states));
+      } catch (writeError) {
+        // Restore the original records if any of the three writes fails.
+        for (const [key, value] of [
+          [archiveKey, previousArchive],
+          [TABLE_ORDERS_KEY, previousOrders],
+          [TABLE_STATE_KEY, previousStates],
+        ] as const) {
+          try {
+            if (value === null) localStorage.removeItem(key);
+            else localStorage.setItem(key, value);
+          } catch (rollbackError) { console.error("Falha ao restaurar armazenamento local", rollbackError); }
+        }
+        throw writeError;
+      }
+      window.dispatchEvent(new Event("tguia:orders-change"));
+      window.dispatchEvent(new Event("tguia:table-state-change"));
+      setItems([]);
+      setPaymentOpen(false);
+      setSelectedTable(null);
+    } catch (error) {
+      setPaymentError("Não foi possível registrar o fechamento local. Nenhum pagamento real foi processado.");
+      console.error(error);
+    }
   };
 
   const confirmQuickAdd = () => {
@@ -243,7 +306,7 @@ export function TableOrderModal() {
                   {isBlocked ? "Desbloquear Pedido (F8)" : "Bloquear Pedido (F8)"}
                 </label>
               </div>
-              <div className="mt-auto p-3"><button className="mb-4 block font-bold text-[#0078d7]">Vincular Cliente (F11)</button><button className="block font-bold text-[#0078d7]">Mais Opções (F12)</button></div>
+              <div className="mt-auto p-3"><button onClick={() => setCustomerModalOpen(true)} className="mb-2 block font-bold text-[#0078d7]">Vincular Cliente (F11)</button>{customer && <div className="mb-3 max-w-[190px] truncate text-xs text-[#273142]" title={customer.name}>Cliente: {customer.name}</div>}<button className="block font-bold text-[#0078d7]">Mais Opções (F12)</button></div>
               <div className="border-t border-[#d4d4d4] p-4"><button onClick={() => setSelectedTable(null)} className="font-bold text-[#0078d7]">‹ Voltar (ESC)</button></div>
             </aside>
 
@@ -270,7 +333,24 @@ export function TableOrderModal() {
                 )}
               </div>
 
-              <div className="flex h-[60px] items-center justify-between border-t border-[#d4d4d4] px-6"><button className="font-bold text-[#0078d7]">▧ Imprimir (F9)</button><button disabled={items.length === 0} className={`px-4 py-3 font-bold ${items.length ? "bg-[#444] text-white" : "text-gray-400"}`}>▱ PAGAMENTO (F5)</button></div>
+              <div className="flex h-[60px] items-center justify-between border-t border-[#d4d4d4] px-6"><button className="font-bold text-[#0078d7]">▧ Imprimir (F9)</button><button onClick={() => { setPaymentError(""); setPaymentOpen(true); }} disabled={items.length === 0} className={`px-4 py-3 font-bold ${items.length ? "bg-[#444] text-white" : "text-gray-400"}`}>▱ PAGAMENTO (F5)</button></div>
+
+              {paymentOpen && (
+                <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/50 p-4">
+                  <div role="dialog" aria-modal="true" aria-label="Fechamento local" className="w-[390px] max-w-full border border-[#b0b0b0] bg-white p-5 shadow-xl">
+                    <h2 className="mb-3 text-lg font-bold">Fechar Comanda {selectedTable.number}</h2>
+                    <p className="mb-2 text-sm">Valor total: <strong>R$ {money.format(total)}</strong></p>
+                    <p className="mb-3 rounded bg-amber-50 p-2 text-xs text-amber-900">Registro local de demonstração. Não cobra cartão nem confirma recebimento real.</p>
+                    <label className="mb-3 block text-sm">Forma informada
+                      <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="mt-1 w-full border p-2">
+                        <option value="pix">Pix</option><option value="dinheiro">Dinheiro</option><option value="debito">Débito</option><option value="credito">Crédito</option>
+                      </select>
+                    </label>
+                    {paymentError && <p role="alert" className="mb-2 text-xs text-red-700">{paymentError}</p>}
+                    <div className="flex justify-end gap-2"><button onClick={() => setPaymentOpen(false)} className="border px-3 py-2">Cancelar</button><button onClick={finishLocalOrder} className="bg-[#444] px-3 py-2 font-bold text-white">Registrar fechamento local</button></div>
+                  </div>
+                </div>
+              )}
 
               {actionItem && !isBlocked && (
                 <div className="absolute inset-0 z-[150] flex items-center justify-center bg-white/70">
@@ -295,6 +375,7 @@ export function TableOrderModal() {
         </div>
       </div>
 
+      {customerModalOpen && selectedTable && <CustomerLinkModal table={selectedTable.number} onClose={() => setCustomerModalOpen(false)} onSaved={setCustomer} />}
       <ProductLocatorModal open={productsOpen} onClose={() => setProductsOpen(false)} onAdd={addProduct} />
     </>
   );

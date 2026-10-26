@@ -1,0 +1,27 @@
+name: Validate TGuia Food
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, feature/tguia-food-closing-local-20261026]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.6'
+      - name: Install dependencies (lockfile compatibility)
+        run: bun install
+      - name: Production build
+        run: bun run build
+      - name: Functional lint (exclude existing formatting debt)
+        run: |
+          bunx eslint . --rule 'prettier/prettier: off'
+      - name: Full lint report (non-blocking formatting debt)
+        continue-on-error: true
+        run: bun run lint

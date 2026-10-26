@@ -71,8 +71,8 @@ function Gestao() {
     if (inventory.error) { setStocks([]); } else setStocks((inventory.data || []) as Stock[]);
   }, [client, orgId]);
 
-  useEffect(() => { void loadOrganizations(); }, [loadOrganizations]);
-  useEffect(() => { void loadData(); }, [loadData]);
+  useEffect(() => { void Promise.resolve().then(loadOrganizations); }, [loadOrganizations]);
+  useEffect(() => { void Promise.resolve().then(loadData); }, [loadData]);
 
   async function login(event: FormEvent) {
     event.preventDefault();
