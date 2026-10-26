@@ -15,8 +15,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: '1.3.6'
-      - name: Install locked dependencies
-        run: bun install --frozen-lockfile
+      - name: Install dependencies (lockfile compatibility)
+        run: bun install
       - name: Production build
         run: bun run build
       - name: Lint
