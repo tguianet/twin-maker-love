@@ -10,7 +10,7 @@ const TABLE_ORDERS_KEY = "tguia-food-orders-v1";
 function getSavedItems(table: string): OrderItem[] {
   try {
     const saved = JSON.parse(localStorage.getItem(TABLE_ORDERS_KEY) || "{}");
-    return Array.isArray(saved[table]) ? saved[table] : [];
+    return Array.isArray(saved[table]) ? saved[table].filter((item: OrderItem) => item && typeof item.code === "string" && Number.isFinite(item.quantity) && item.quantity > 0) : [];
   } catch { return []; }
 }
 
@@ -126,9 +126,15 @@ export function TableOrderModal() {
 
   useEffect(() => {
     if (!selectedTable) return;
-    const saved = JSON.parse(localStorage.getItem(TABLE_ORDERS_KEY) || "{}");
-    saved[selectedTable.number] = items;
-    localStorage.setItem(TABLE_ORDERS_KEY, JSON.stringify(saved));
+    try {
+      const saved = JSON.parse(localStorage.getItem(TABLE_ORDERS_KEY) || "{}");
+      if (items.length) saved[selectedTable.number] = items;
+      else delete saved[selectedTable.number];
+      localStorage.setItem(TABLE_ORDERS_KEY, JSON.stringify(saved));
+      window.dispatchEvent(new CustomEvent("tguia:orders-change", { detail: { tableNumber: selectedTable.number } }));
+    } catch (error) {
+      console.error("Nao foi possivel salvar a comanda localmente", error);
+    }
   }, [selectedTable, items]);
 
   const orderNumber = useMemo(() => {
