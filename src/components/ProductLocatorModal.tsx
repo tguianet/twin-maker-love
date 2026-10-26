@@ -79,12 +79,10 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
     const timeout = window.setTimeout(() => setAddedMessage(""), 3000);
     return () => window.clearTimeout(timeout);
   }, [open, addedMessage]);
-  useEffect(() => {
-    if (!open) return;
-    return () => setAddedMessage("");
-  }, [open]);
+
   const confirmAdd = (product: OrderProduct) => {
-    if (onAdd(product) !== false) setAddedMessage(`${product.name} adicionado à comanda com sucesso.`);
+    const accepted = onAdd(product);
+    if (accepted !== false) setAddedMessage(`${product.name} adicionado à comanda com sucesso.`);
   };
 
   useEffect(() => {
@@ -165,7 +163,7 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
           </div>
         </div>
 
-        {addedMessage && <div role="status" aria-live="polite" className="border-b border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800">✓ {addedMessage}</div>}
+        {addedMessage && <div role="status" aria-live="polite" className="shrink-0 border-y-2 border-green-500 bg-green-100 px-4 py-3 text-sm font-bold text-green-900 shadow-sm">✓ {addedMessage}</div>}
         {catalogError && <p role="alert" className="bg-amber-50 px-3 py-1 text-xs text-amber-800">Catálogo online indisponível: {catalogError}</p>}
         <div className="flex min-h-0 flex-1 overflow-hidden">
           <aside className="w-[320px] shrink-0 overflow-y-auto bg-[#2b2b2b] p-2">
