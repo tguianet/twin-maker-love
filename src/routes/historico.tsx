@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/historico")({ component: HistoryPage });
 
@@ -72,12 +72,12 @@ function HistoryPage() {
         <div className="overflow-x-auto rounded border border-[#c4d0da] bg-white">
           <table className="w-full min-w-[600px] text-left text-sm">
             <thead className="bg-[#e7edf3]"><tr><th className="p-3">Data</th><th className="p-3">Mesa</th><th className="p-3">Forma informada</th><th className="p-3 text-right">Total</th><th className="p-3">Detalhes</th></tr></thead>
-            <tbody>{visible.map(order => <><tr key={order.id} className="border-t">
+            <tbody>{visible.map(order => <Fragment key={order.id}><tr className="border-t">
               <td className="p-3">{Number.isFinite(Date.parse(order.closedAt)) ? new Date(order.closedAt).toLocaleString("pt-BR") : "Sem data"}</td>
               <td className="p-3">{order.table}</td><td className="p-3">{methods[order.paymentMethod] || order.paymentMethod}</td>
               <td className="p-3 text-right font-semibold">{money(order.total)}</td>
               <td className="p-3"><button type="button" onClick={() => setExpanded(expanded === order.id ? null : order.id)} className="font-semibold text-blue-700 underline">{expanded === order.id ? "Ocultar" : "Ver itens"}</button></td>
-            </tr>{expanded === order.id && <tr key={order.id + "-details"} className="bg-slate-50"><td colSpan={5} className="p-3"><ul className="space-y-1">{order.items.map((item, i) => <li key={i}>{item.quantity}× {item.name} — {money(item.price * item.quantity)}</li>)}</ul><p className="mt-2 text-xs">Subtotal: {money(order.subtotal)} · Serviço: {money(order.service)} · Total: {money(order.total)}</p></td></tr>}</>)}</tbody>
+            </tr>{expanded === order.id && <tr key={order.id + "-details"} className="bg-slate-50"><td colSpan={5} className="p-3"><ul className="space-y-1">{order.items.map((item, i) => <li key={i}>{item.quantity}× {item.name} — {money(item.price * item.quantity)}</li>)}</ul><p className="mt-2 text-xs">Subtotal: {money(order.subtotal)} · Serviço: {money(order.service)} · Total: {money(order.total)}</p></td></tr>}</Fragment>)}</tbody>
           </table>
           {visible.length === 0 && <p className="p-5 text-sm text-slate-500">Nenhum fechamento encontrado neste navegador.</p>}
         </div>
