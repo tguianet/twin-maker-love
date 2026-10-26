@@ -151,6 +151,7 @@ function Index() {
   const openLiveTable = async (table:{id:string;number:number}) => {
     if (!liveOrg || !supabase) return;
     setSelectedLiveTable(table); setLiveBusy(true); setLiveNotice("");
+    setLiveOrder(null); setLiveItems([]); setLiveSelectedProduct(""); setLiveQty(1);
     try {
       const [orderResult,productResult,orgResult] = await Promise.all([
         supabase.from("orders").select("id,status,order_number,order_items(id,product_name,quantity,unit_price)").eq("organization_id",liveOrg).eq("table_id",table.id).in("status",["open","closing"]).maybeSingle(),
