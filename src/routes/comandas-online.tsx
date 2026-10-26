@@ -27,6 +27,7 @@ function SharedOrdersPage() {
   const [selection, setSelection] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState<Record<string, number>>({});
   const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [rpcAvailable, setRpcAvailable] = useState(false);
   const [message, setMessage] = useState("");
   useEffect(() => {
     let cancelled = false;
@@ -72,6 +73,8 @@ function SharedOrdersPage() {
       setOrders((ordersResult.data || []) as Order[]);
       setTables(Object.fromEntries((tablesResult.data || []).map(t => [t.id, t.number])));
       setProducts((productsResult.data || []) as { id: string; name: string; sale_price: number }[]);
+      // Keep shared item writes disabled until the server function has been verified in homologation.
+      setRpcAvailable(false);
     } catch (err) { setError(err instanceof Error ? err.message : "Falha ao consultar comandas."); }
     finally { setLoading(false); }
   };
@@ -107,7 +110,7 @@ function SharedOrdersPage() {
     } finally { setSaving(false); }
   };
   const addItem = async (orderId: string) => {
-    if (!client || addingTo || !org) return;
+    if (!client || addingTo || !org || !rpcAvailable) return;
     const productId = selection[orderId];
     const amount = quantity[orderId] ?? 1;
     if (!productId || !products.some(p => p.id === productId) || !Number.isInteger(amount) || amount < 1 || amount > 100) {
@@ -142,6 +145,7 @@ function SharedOrdersPage() {
         </select>
         <button disabled={!org || loading} onClick={() => void refresh()} className="border bg-white px-4 py-2 font-semibold disabled:opacity-50">{loading ? "Consultando..." : "Atualizar consulta"}</button>
       </div>
+      {!rpcAvailable && !!org && <p className="mb-3 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Lançamento online de produtos desativado até validar a função add_order_product em um banco exclusivo do TGuia Food. A consulta continua disponível.</p>}
       {message && <p role="status" className="mb-3 border border-green-200 bg-green-50 p-3 text-sm">{message}</p>}
       {!!org && <section className="mb-5 rounded border border-[#c4d0da] bg-white p-4">
         <h2 className="mb-2 font-bold">Abrir nova comanda no Supabase</h2>
@@ -168,7 +172,7 @@ function SharedOrdersPage() {
               {products.map(product => <option key={product.id} value={product.id}>{product.name} — {money(product.sale_price)}</option>)}
             </select>
             <input aria-label={"Quantidade do pedido " + order.order_number} className="w-24 border p-2 text-sm" type="number" min={1} max={100} step={1} value={quantity[order.id] ?? 1} onChange={e => setQuantity(prev => ({ ...prev, [order.id]: Number(e.target.value) }))} />
-            <button type="button" disabled={!selection[order.id] || addingTo !== null} onClick={() => void addItem(order.id)} className="bg-[#315976] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{addingTo === order.id ? "Gravando..." : "Adicionar produto"}</button>
+            <button type="button" disabled={!rpcAvailable || !selection[order.id] || addingTo !== null} onClick={() => void addItem(order.id)} className="bg-[#315976] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{addingTo === order.id ? "Gravando..." : "Adicionar produto"}</button>
           </div>}
         </section>;
       })}</div>
