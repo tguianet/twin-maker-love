@@ -106,7 +106,7 @@ function Index() {
 
   const freeTables = useMemo(
     () => allFreeTables.filter((table) => !tableStates[table] && !ordersWithItems.has(table)),
-    [tableStates],
+    [tableStates, ordersWithItems],
   );
 
   const normalizedTableQuery = tableQuery.trim().toLocaleLowerCase("pt-BR");
