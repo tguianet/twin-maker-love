@@ -172,14 +172,29 @@ function SharedOrdersPage() {
     } catch (err) { setError(err instanceof Error ? err.message : "Falha ao adicionar produto."); }
     finally { setAddingTo(null); }
   };
-  return <div className="min-h-screen bg-[#f3f6f9] text-[#273142]">
-    <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-[#e3eaf1] px-5 py-3">
-      <div><strong>TGuia Food</strong><span className="ml-3 text-sm">Comandas compartilhadas</span></div>
-      <nav className="flex flex-wrap gap-2"><a href="/historico-online" className="border bg-white px-4 py-2 text-sm">Histórico do caixa</a><a href="/gestao" className="border bg-white px-4 py-2 text-sm">Gestão</a><a href="/" className="border bg-white px-4 py-2 text-sm">Voltar às mesas</a></nav>
+  return <div className="min-h-screen bg-background font-sans text-app-text">
+    <header className="flex min-h-9 flex-wrap items-center justify-between border-b border-app-border bg-app-chrome px-3 text-xs">
+      <nav className="flex flex-wrap items-center gap-1">
+        <a href="/" className="px-3 py-2 font-semibold text-app-blue hover:bg-app-chrome-hover">PRINCIPAL</a>
+        <span className="border-b-2 border-app-blue bg-background px-3 py-2 font-semibold text-app-blue">CAIXA / COMANDAS</span>
+        <a href="/gestao" className="px-3 py-2 text-app-muted hover:bg-app-chrome-hover">PRODUTOS / GESTÃO</a>
+        <a href="/historico-online" className="px-3 py-2 text-app-muted hover:bg-app-chrome-hover">HISTÓRICO DO CAIXA</a>
+      </nav>
+      <span className="px-2 font-semibold">TGuia Food</span>
     </header>
-    <main className="mx-auto max-w-5xl p-5">
-      <h1 className="mb-2 text-xl font-bold">Pedidos no Supabase</h1>
-      <p className="mb-4 border border-blue-200 bg-blue-50 p-3 text-sm">A abertura de comandas e o lançamento de produtos usam o Supabase. O lançamento exige a função segura add_order_product instalada no banco. Não há pagamentos nem movimentação de estoque.</p>
+    <div className="flex min-h-20 flex-wrap items-center gap-4 border-b border-app-border bg-app-ribbon px-5 py-3">
+      <div className="border-r border-app-border pr-5"><div className="text-sm font-bold">Caixa / Comandas</div><div className="text-xs text-app-muted">Controle de pedidos</div></div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <a href="/" className="ribbon-button rounded-sm border border-app-border bg-white px-4 py-3 font-semibold">Mesas / Comandas (F3)</a>
+        <a href="/historico-online" className="ribbon-button rounded-sm border border-app-border bg-white px-4 py-3 font-semibold">Histórico do Caixa</a>
+        <a href="/gestao" className="ribbon-button rounded-sm border border-app-border bg-white px-4 py-3 font-semibold">Produtos / Estoque</a>
+      </div>
+    </div>
+    <main className="mx-auto max-w-[1500px] p-4 lg:p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-app-border pb-3">
+        <div><h1 className="text-lg font-bold">Comandas em andamento</h1><p className="text-xs text-app-muted">Mesas e movimentações do restaurante</p></div>
+        <span className="border border-app-border bg-app-chrome px-3 py-2 text-xs font-semibold">{orders.length} comandas em andamento</span>
+      </div>
       {error && <p role="alert" className="mb-3 border border-red-300 bg-red-50 p-3 text-sm">{error}</p>}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select aria-label="Organização" className="border bg-white p-2" value={org} onChange={e => { setOrg(e.target.value); setOrders([]); setTables({}); setSelectedTableId(""); setMessage(""); }}>
@@ -190,8 +205,8 @@ function SharedOrdersPage() {
       </div>
       {!rpcAvailable && !!org && <p className="mb-3 border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">Lançamento de produtos disponível apenas quando conectado ao Supabase exclusivo TGuia Food. A consulta continua disponível.</p>}
       {message && <p role="status" className="mb-3 border border-green-200 bg-green-50 p-3 text-sm">{message}</p>}
-      {!!org && <section className="mb-5 rounded border border-[#c4d0da] bg-white p-4">
-        <h2 className="mb-2 font-bold">Abrir nova comanda no Supabase</h2>
+      {!!org && <section className="mb-5 rounded-sm border border-app-border bg-white p-4 shadow-sm">
+        <h2 className="mb-2 text-sm font-bold">Abrir comanda</h2>
         <p className="mb-3 text-xs text-slate-600">A mesa deve existir no cadastro do banco e não possuir outra comanda aberta. Esta ação grava uma comanda real, porém sem itens ou pagamentos.</p>
         <div className="flex flex-wrap gap-2">
           <select aria-label="Mesa para nova comanda" className="min-w-[180px] flex-1 border p-2" value={selectedTableId} onChange={e => setSelectedTableId(e.target.value)}>
@@ -199,26 +214,26 @@ function SharedOrdersPage() {
             {Object.entries(tables).sort((a,b) => a[1]-b[1]).map(([id,number]) => <option key={id} value={id}>Mesa {number}</option>)}
           </select>
           <input aria-label="Nome opcional do cliente" maxLength={120} className="min-w-[180px] flex-1 border p-2" placeholder="Nome do cliente (opcional)" value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} />
-          <button type="button" disabled={saving || loading || !selectedTableId} onClick={() => void createOrder()} className="bg-[#315976] px-4 py-2 font-semibold text-white disabled:opacity-50">{saving ? "Gravando..." : "Abrir comanda"}</button>
+          <button type="button" disabled={saving || loading || !selectedTableId} onClick={() => void createOrder()} className="bg-app-blue px-4 py-2 font-semibold text-white disabled:opacity-50">{saving ? "Gravando..." : "Abrir comanda"}</button>
         </div>
       </section>}
       {authReady && !!org && orders.length === 0 && !loading && !error && <p className="p-4 text-sm">Nenhuma comanda aberta encontrada.</p>}
       <div className="mb-4 flex flex-wrap gap-3 border bg-white p-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={showClosingOnly} onChange={e => setShowClosingOnly(e.target.checked)} /> Somente aguardando caixa</label><input aria-label="Buscar comanda" className="min-w-[200px] flex-1 border p-2" placeholder="Buscar número, mesa ou cliente" value={orderSearch} onChange={e => setOrderSearch(e.target.value)} /><span className="self-center">{orders.filter(o => o.status === "closing").length} aguardando caixa</span></div>
-      <div className="space-y-3">{orders.filter(order => (!showClosingOnly || order.status === "closing") && (!requestedTableId || order.table_id === requestedTableId) && (!orderSearch.trim() || [String(order.order_number), order.customer_name || "", order.table_id ? String(tables[order.table_id] || "") : ""].some(value => value.toLocaleLowerCase("pt-BR").includes(orderSearch.trim().toLocaleLowerCase("pt-BR"))))).map(order => {
+      <div className="grid gap-3 xl:grid-cols-2">{orders.filter(order => (!showClosingOnly || order.status === "closing") && (!requestedTableId || order.table_id === requestedTableId) && (!orderSearch.trim() || [String(order.order_number), order.customer_name || "", order.table_id ? String(tables[order.table_id] || "") : ""].some(value => value.toLocaleLowerCase("pt-BR").includes(orderSearch.trim().toLocaleLowerCase("pt-BR"))))).map(order => {
         const subtotal = order.order_items.reduce((n, item) => n + item.quantity * item.unit_price, 0);
         const service = Math.round(subtotal * serviceRate) / 100;
         const total = Math.round((subtotal + service) * 100) / 100;
-        return <section key={order.id} className="rounded border border-[#c4d0da] bg-white p-4">
+        return <section key={order.id} className="rounded-sm border border-app-border bg-white p-4 shadow-sm">
           <div className="flex flex-wrap justify-between gap-3"><strong>Pedido #{order.order_number} {order.table_id ? "· Mesa " + (tables[order.table_id] || "?") : ""}</strong><span>{order.status === "closing" ? "Em fechamento" : "Aberto"} · {money(total)}</span></div>
           <p className="mt-1 text-sm text-slate-600">{order.customer_name || "Cliente não informado"} · {new Date(order.opened_at).toLocaleString("pt-BR")}</p>
           <ul className="mt-2 text-sm">{order.order_items.map(item => <li key={item.id}>{item.quantity}× {item.product_name} — {money(item.unit_price)}</li>)}</ul>
-          <div className="mt-3 rounded border bg-[#f3f6f9] p-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div><div className="flex justify-between"><span>Serviço ({serviceRate}%)</span><span>{money(service)}</span></div><div className="flex justify-between border-t pt-2 font-bold"><span>Total a receber</span><span>{money(total)}</span></div><p className="mt-2 text-xs text-slate-600">Resumo para conferência. Não registra pagamento ou baixa financeira.</p></div>
+          <div className="mt-3 rounded-sm border border-app-border bg-app-chrome p-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div><div className="flex justify-between"><span>Serviço ({serviceRate}%)</span><span>{money(service)}</span></div><div className="flex justify-between border-t pt-2 font-bold"><span>Total a receber</span><span>{money(total)}</span></div><p className="mt-2 text-xs text-slate-600">Resumo para conferência. Não registra pagamento ou baixa financeira.</p></div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button type="button" disabled={changingStatus !== null || addingTo !== null} onClick={() => void changeOrderStatus(order.id, order.status)}
-              className="border border-[#a9bbc8] bg-[#e9eff5] px-3 py-2 text-sm font-semibold disabled:opacity-50">
+              className="border border-app-border bg-app-ribbon px-3 py-2 text-sm font-semibold disabled:opacity-50">
               {changingStatus === order.id ? "Atualizando..." : order.status === "open" ? "Encaminhar ao caixa" : "Reabrir comanda"}
             </button>
-            {order.status === "closing" && <div className="flex flex-wrap items-center gap-2"><select aria-label={"Forma de recebimento da comanda " + order.order_number} className="border p-2 text-sm" value={payMethod[order.id] || "cash"} onChange={e => setPayMethod(prev => ({ ...prev, [order.id]: e.target.value }))}><option value="cash">Dinheiro</option><option value="pix">Pix recebido</option><option value="debit">Débito recebido</option><option value="credit">Crédito recebido</option></select><button type="button" disabled={settling !== null || changingStatus !== null} onClick={() => void settleOrder(order)} className="bg-[#315976] px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{settling === order.id ? "Fechando..." : "Confirmar recebimento e fechar"}</button></div>}
+            {order.status === "closing" && <div className="flex flex-wrap items-center gap-2"><select aria-label={"Forma de recebimento da comanda " + order.order_number} className="border p-2 text-sm" value={payMethod[order.id] || "cash"} onChange={e => setPayMethod(prev => ({ ...prev, [order.id]: e.target.value }))}><option value="cash">Dinheiro</option><option value="pix">Pix recebido</option><option value="debit">Débito recebido</option><option value="credit">Crédito recebido</option></select><button type="button" disabled={settling !== null || changingStatus !== null} onClick={() => void settleOrder(order)} className="bg-app-blue px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{settling === order.id ? "Fechando..." : "Confirmar recebimento e fechar"}</button></div>}
           </div>
           {order.status === "open" && <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
             <select aria-label={"Produto do pedido " + order.order_number} className="min-w-[220px] flex-1 border p-2 text-sm" value={selection[order.id] || ""} onChange={e => setSelection(prev => ({ ...prev, [order.id]: e.target.value }))}>
@@ -226,7 +241,7 @@ function SharedOrdersPage() {
               {products.map(product => <option key={product.id} value={product.id}>{product.name} — {money(product.sale_price)}</option>)}
             </select>
             <input aria-label={"Quantidade do pedido " + order.order_number} className="w-24 border p-2 text-sm" type="number" min={1} max={100} step={1} value={quantity[order.id] ?? 1} onChange={e => setQuantity(prev => ({ ...prev, [order.id]: Number(e.target.value) }))} />
-            <button type="button" disabled={!rpcAvailable || !selection[order.id] || addingTo !== null} onClick={() => void addItem(order.id)} className="bg-[#315976] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{addingTo === order.id ? "Gravando..." : "Adicionar produto"}</button>
+            <button type="button" disabled={!rpcAvailable || !selection[order.id] || addingTo !== null} onClick={() => void addItem(order.id)} className="bg-app-blue px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{addingTo === order.id ? "Gravando..." : "Adicionar produto"}</button>
           </div>}
         </section>;
       })}</div>
