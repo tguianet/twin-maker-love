@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 export const Route = createFileRoute("/historico")({ component: HistoryPage });
 
 type ClosedItem = { name: string; quantity: number; price: number };
-type ClosedOrder = { id: string; table: string; items: ClosedItem[]; subtotal: number; service: number; total: number; paymentMethod: string; closedAt: string; mode?: string };
+type ClosedOrder = { id: string; table: string; items: ClosedItem[]; subtotal: number; service: number; total: number; paymentMethod: string; closedAt: string; customer?: { id: string; name: string } | null; mode?: string };
 const KEY = "tguia-food-closed-orders-v1";
 const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const methods: Record<string, string> = { pix: "Pix", dinheiro: "Dinheiro", debito: "Débito", credito: "Crédito" };
@@ -40,7 +40,7 @@ function HistoryPage() {
   const visible = useMemo(() => history.filter(order => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
     return (!term || order.table.toLocaleLowerCase("pt-BR").includes(term) ||
-      order.items.some(item => item.name.toLocaleLowerCase("pt-BR").includes(term))) &&
+      order.items.some(item => item.name.toLocaleLowerCase("pt-BR").includes(term)) || (order.customer?.name || "").toLocaleLowerCase("pt-BR").includes(term)) &&
       (method === "all" || method === order.paymentMethod);
   }), [history, query, method]);
   const total = visible.reduce((sum, order) => sum + order.total, 0);
@@ -58,7 +58,7 @@ function HistoryPage() {
         </p>
         <div className="mb-4 flex flex-wrap gap-3">
           <input aria-label="Pesquisar mesa ou produto" value={query} onChange={event => setQuery(event.target.value)}
-            placeholder="Pesquisar mesa ou produto..." className="min-w-[220px] flex-1 rounded border border-[#aebcca] bg-white p-2 text-sm" />
+            placeholder="Pesquisar mesa, cliente ou produto..." className="min-w-[220px] flex-1 rounded border border-[#aebcca] bg-white p-2 text-sm" />
           <select aria-label="Filtrar forma informada" value={method} onChange={event => setMethod(event.target.value)}
             className="rounded border border-[#aebcca] bg-white p-2 text-sm">
             <option value="all">Todas as formas</option>
@@ -71,13 +71,13 @@ function HistoryPage() {
         </div>
         <div className="overflow-x-auto rounded border border-[#c4d0da] bg-white">
           <table className="w-full min-w-[600px] text-left text-sm">
-            <thead className="bg-[#e7edf3]"><tr><th className="p-3">Data</th><th className="p-3">Mesa</th><th className="p-3">Forma informada</th><th className="p-3 text-right">Total</th><th className="p-3">Detalhes</th></tr></thead>
+            <thead className="bg-[#e7edf3]"><tr><th className="p-3">Data</th><th className="p-3">Mesa</th><th className="p-3">Cliente</th><th className="p-3">Forma informada</th><th className="p-3 text-right">Total</th><th className="p-3">Detalhes</th></tr></thead>
             <tbody>{visible.map(order => <Fragment key={order.id}><tr className="border-t">
               <td className="p-3">{Number.isFinite(Date.parse(order.closedAt)) ? new Date(order.closedAt).toLocaleString("pt-BR") : "Sem data"}</td>
-              <td className="p-3">{order.table}</td><td className="p-3">{methods[order.paymentMethod] || order.paymentMethod}</td>
+              <td className="p-3">{order.table}</td><td className="p-3">{order.customer?.name || "Não vinculado"}</td><td className="p-3">{methods[order.paymentMethod] || order.paymentMethod}</td>
               <td className="p-3 text-right font-semibold">{money(order.total)}</td>
               <td className="p-3"><button type="button" onClick={() => setExpanded(expanded === order.id ? null : order.id)} className="font-semibold text-blue-700 underline">{expanded === order.id ? "Ocultar" : "Ver itens"}</button></td>
-            </tr>{expanded === order.id && <tr key={order.id + "-details"} className="bg-slate-50"><td colSpan={5} className="p-3"><ul className="space-y-1">{order.items.map((item, i) => <li key={i}>{item.quantity}× {item.name} — {money(item.price * item.quantity)}</li>)}</ul><p className="mt-2 text-xs">Subtotal: {money(order.subtotal)} · Serviço: {money(order.service)} · Total: {money(order.total)}</p></td></tr>}</Fragment>)}</tbody>
+            </tr>{expanded === order.id && <tr key={order.id + "-details"} className="bg-slate-50"><td colSpan={6} className="p-3"><ul className="space-y-1">{order.items.map((item, i) => <li key={i}>{item.quantity}× {item.name} — {money(item.price * item.quantity)}</li>)}</ul><p className="mt-2 text-xs">Subtotal: {money(order.subtotal)} · Serviço: {money(order.service)} · Total: {money(order.total)}</p></td></tr>}</Fragment>)}</tbody>
           </table>
           {visible.length === 0 && <p className="p-5 text-sm text-slate-500">Nenhum fechamento encontrado neste navegador.</p>}
         </div>
