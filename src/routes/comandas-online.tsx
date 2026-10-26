@@ -109,15 +109,6 @@ function SharedOrdersPage() {
     }catch(e){setError(e instanceof Error?e.message:"Falha ao salvar nome.");}
     finally{setCustomerSaving(null);}
   };
-  useEffect(()=>{
-    if(!org || typeof window==="undefined")return;
-    const key="tguia-food-comanda-rascunho-"+org;
-    try {const draft=JSON.parse(window.localStorage.getItem(key)||"{}");setSelectedTableId(draft.table||"");setNewCustomerName(draft.name||"");}catch{setNewCustomerName("");}
-  },[org]);
-  useEffect(()=>{
-    if(!org || typeof window==="undefined")return;
-    window.localStorage.setItem("tguia-food-comanda-rascunho-"+org,JSON.stringify({table:selectedTableId,name:newCustomerName}));
-  },[org,selectedTableId,newCustomerName]);
   const createOrder = async () => {
     if (!client || !org || !selectedTableId || saving) return;
     if (!Object.prototype.hasOwnProperty.call(tables, selectedTableId)) {
