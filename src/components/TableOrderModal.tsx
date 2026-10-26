@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ProductLocatorModal, type OrderProduct } from "./ProductLocatorModal";
+import { CustomerLinkModal, linkedCustomer, type LocalCustomer } from "./CustomerLinkModal";
 
 type SelectedTable = { number: string; occupied: boolean };
 type OrderItem = OrderProduct & { quantity: number };
@@ -55,6 +56,8 @@ function SmallIcon({ children, tone = "blue" }: { children: React.ReactNode; ton
 
 export function TableOrderModal() {
   const [selectedTable, setSelectedTable] = useState<SelectedTable | null>(null);
+  const [customerModalOpen, setCustomerModalOpen] = useState(false);
+  const [customer, setCustomer] = useState<LocalCustomer | null>(null);
   const [productsOpen, setProductsOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [quickQuery, setQuickQuery] = useState("");
@@ -88,6 +91,8 @@ export function TableOrderModal() {
         .find((text) => /^\d{1,3}$/.test(text));
       if (!number) return;
       setSelectedTable({ number: number.padStart(2, "0"), occupied: table.classList.contains("table-box-active") });
+      setCustomer(linkedCustomer(number.padStart(2, "0")));
+      setCustomerModalOpen(false);
       setItems(getSavedItems(number.padStart(2, "0")));
       setProductsOpen(false);
       setQuickQuery("");
@@ -278,7 +283,7 @@ export function TableOrderModal() {
                   {isBlocked ? "Desbloquear Pedido (F8)" : "Bloquear Pedido (F8)"}
                 </label>
               </div>
-              <div className="mt-auto p-3"><button className="mb-4 block font-bold text-[#0078d7]">Vincular Cliente (F11)</button><button className="block font-bold text-[#0078d7]">Mais Opções (F12)</button></div>
+              <div className="mt-auto p-3"><button onClick={() => setCustomerModalOpen(true)} className="mb-2 block font-bold text-[#0078d7]">Vincular Cliente (F11)</button>{customer && <div className="mb-3 max-w-[190px] truncate text-xs text-[#273142]" title={customer.name}>Cliente: {customer.name}</div>}<button className="block font-bold text-[#0078d7]">Mais Opções (F12)</button></div>
               <div className="border-t border-[#d4d4d4] p-4"><button onClick={() => setSelectedTable(null)} className="font-bold text-[#0078d7]">‹ Voltar (ESC)</button></div>
             </aside>
 
@@ -347,6 +352,7 @@ export function TableOrderModal() {
         </div>
       </div>
 
+      {customerModalOpen && selectedTable && <CustomerLinkModal table={selectedTable.number} onClose={() => setCustomerModalOpen(false)} onSaved={setCustomer} />}
       <ProductLocatorModal open={productsOpen} onClose={() => setProductsOpen(false)} onAdd={addProduct} />
     </>
   );
