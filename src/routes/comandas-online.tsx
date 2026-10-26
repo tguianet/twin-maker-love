@@ -25,6 +25,8 @@ function SharedOrdersPage() {
   const [selectedTableId, setSelectedTableId] = useState("");
   const [requestedTableId] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("mesa") || "");
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [customerEdits, setCustomerEdits] = useState<Record<string,string>>({});
+  const [customerSaving, setCustomerSaving] = useState<string|null>(null);
   const [saving, setSaving] = useState(false);
   const [serviceRate, setServiceRate] = useState(0);
   const [products, setProducts] = useState<{ id: string; name: string; sale_price: number }[]>([]);
@@ -91,6 +93,31 @@ function SharedOrdersPage() {
     // Refresh explicitly on organization changes, not on an interval.
     void Promise.resolve().then(refresh);
   }, [client, org]);
+  const saveCustomerName = async (order:Order, value:string) => {
+    if (!client || !org || customerSaving) return;
+    const name=value.trim().slice(0,120);
+    if (name === (order.customer_name || "")) return;
+    setCustomerSaving(order.id); setError("");
+    try {
+      const {data,error:failure}=await client.from("orders").update({customer_name:name||null})
+       .eq("id",order.id).eq("organization_id",org).in("status",["open","closing"])
+       .select("id").maybeSingle();
+      if(failure)throw failure;
+      if(!data)throw Error("A comanda foi alterada. Atualize a consulta.");
+      setOrders(previous=>previous.map(item=>item.id===order.id?{...item,customer_name:name||null}:item));
+      setMessage("Nome do cliente salvo na comanda.");
+    }catch(e){setError(e instanceof Error?e.message:"Falha ao salvar nome.");}
+    finally{setCustomerSaving(null);}
+  };
+  useEffect(()=>{
+    if(!org || typeof window==="undefined")return;
+    const key="tguia-food-comanda-rascunho-"+org;
+    try {const draft=JSON.parse(window.localStorage.getItem(key)||"{}");setSelectedTableId(draft.table||"");setNewCustomerName(draft.name||"");}catch{setNewCustomerName("");}
+  },[org]);
+  useEffect(()=>{
+    if(!org || typeof window==="undefined")return;
+    window.localStorage.setItem("tguia-food-comanda-rascunho-"+org,JSON.stringify({table:selectedTableId,name:newCustomerName}));
+  },[org,selectedTableId,newCustomerName]);
   const createOrder = async () => {
     if (!client || !org || !selectedTableId || saving) return;
     if (!Object.prototype.hasOwnProperty.call(tables, selectedTableId)) {
@@ -229,7 +256,7 @@ function SharedOrdersPage() {
         const total = Math.round((subtotal + service) * 100) / 100;
         return <section key={order.id} className="rounded-sm border border-app-border bg-white p-4 shadow-sm">
           <div className="flex flex-wrap justify-between gap-3"><strong>Pedido #{order.order_number} {order.table_id ? "· Mesa " + (tables[order.table_id] || "?") : ""}</strong><span>{order.status === "closing" ? "Em fechamento" : "Aberto"} · {money(total)}</span></div>
-          <p className="mt-1 text-sm text-slate-600">{order.customer_name || "Cliente não informado"} · {new Date(order.opened_at).toLocaleString("pt-BR")}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-600"><label htmlFor={"cliente-"+order.id}>Cliente:</label><input id={"cliente-"+order.id} aria-label={"Nome do cliente da comanda "+order.order_number} maxLength={120} className="min-w-[200px] flex-1 border border-app-border bg-white px-2 py-1" placeholder="Nome do cliente" value={customerEdits[order.id]??order.customer_name??""} onChange={e=>setCustomerEdits(prev=>({...prev,[order.id]:e.target.value}))} onBlur={e=>void saveCustomerName(order,e.target.value)} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}} /><span className="text-xs">{customerSaving===order.id?"Salvando...":"Salva ao sair do campo"}</span><span className="text-xs">{new Date(order.opened_at).toLocaleString("pt-BR")}</span></div>
           <ul className="mt-2 text-sm">{order.order_items.map(item => <li key={item.id}>{item.quantity}× {item.product_name} — {money(item.unit_price)}</li>)}</ul>
           <div className="mt-3 rounded-sm border border-app-border bg-app-chrome p-3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div><div className="flex justify-between"><span>Serviço ({serviceRate}%)</span><span>{money(service)}</span></div><div className="flex justify-between border-t pt-2 font-bold"><span>Total a receber</span><span>{money(total)}</span></div><p className="mt-2 text-xs text-slate-600">Resumo para conferência. Não registra pagamento ou baixa financeira.</p></div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
