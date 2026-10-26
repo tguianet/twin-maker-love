@@ -49,7 +49,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
  }catch(e){if(mounted)setError(e instanceof Error?e.message:"Falha ao abrir caixa.");}})();return()=>{mounted=false;};},[]);
   const run=async(action:()=>Promise<void>)=>{setBusy(true);setError("");setNotice("");try{await action();if(org)await load(org);}catch(e){setError(e instanceof Error?e.message:"Operação não concluída.");}finally{setBusy(false);}};
   const refresh=()=>run(async()=>{setNotice("Dados atualizados.");});
-  useEffect(()=>{if(org)void load(org).catch(e=>setError(e instanceof Error?e.message:"Falha ao consultar turno."));},[showClosed,org]);
+  useEffect(()=>{ if(!org)return; const update=async()=>{try{await load(org);}catch(e){setError(e instanceof Error?e.message:"Falha ao consultar turno.");}}; void update(); },[showClosed,org]);
  const open=()=>run(async()=>{
   const value=Number(balance.replace(/\./g,"").replace(",","."));
   if(!Number.isFinite(value)||value<0)throw Error("Saldo inicial inválido.");
