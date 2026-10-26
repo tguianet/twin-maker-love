@@ -17,6 +17,8 @@ function SharedOrdersPage() {
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [org, setOrg] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
+  const [showClosingOnly, setShowClosingOnly] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
   const [tables, setTables] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -180,7 +182,8 @@ function SharedOrdersPage() {
         </div>
       </section>}
       {authReady && !!org && orders.length === 0 && !loading && !error && <p className="p-4 text-sm">Nenhuma comanda aberta encontrada.</p>}
-      <div className="space-y-3">{orders.map(order => {
+      <div className="mb-4 flex flex-wrap gap-3 border bg-white p-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={showClosingOnly} onChange={e => setShowClosingOnly(e.target.checked)} /> Somente aguardando caixa</label><input aria-label="Buscar comanda" className="min-w-[200px] flex-1 border p-2" placeholder="Buscar número, mesa ou cliente" value={orderSearch} onChange={e => setOrderSearch(e.target.value)} /><span className="self-center">{orders.filter(o => o.status === "closing").length} aguardando caixa</span></div>
+      <div className="space-y-3">{orders.filter(order => (!showClosingOnly || order.status === "closing") && (!orderSearch.trim() || [String(order.order_number), order.customer_name || "", order.table_id ? String(tables[order.table_id] || "") : ""].some(value => value.toLocaleLowerCase("pt-BR").includes(orderSearch.trim().toLocaleLowerCase("pt-BR"))))).map(order => {
         const subtotal = order.order_items.reduce((n, item) => n + item.quantity * item.unit_price, 0);
         const service = Math.round(subtotal * serviceRate) / 100;
         const total = Math.round((subtotal + service) * 100) / 100;
