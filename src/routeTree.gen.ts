@@ -10,33 +10,80 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ComandasOnlineRouteImport } from './routes/comandas-online'
+import { Route as GestaoRouteImport } from './routes/gestao'
+import { Route as HistoricoRouteImport } from './routes/historico'
+import { Route as HistoricoOnlineRouteImport } from './routes/historico-online'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ComandasOnlineRoute = ComandasOnlineRouteImport.update({
+  id: '/comandas-online',
+  path: '/comandas-online',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoRoute = GestaoRouteImport.update({
+  id: '/gestao',
+  path: '/gestao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoricoRoute = HistoricoRouteImport.update({
+  id: '/historico',
+  path: '/historico',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoricoOnlineRoute = HistoricoOnlineRouteImport.update({
+  id: '/historico-online',
+  path: '/historico-online',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/comandas-online': typeof ComandasOnlineRoute
+  '/gestao': typeof GestaoRoute
+  '/historico': typeof HistoricoRoute
+  '/historico-online': typeof HistoricoOnlineRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/comandas-online': typeof ComandasOnlineRoute
+  '/gestao': typeof GestaoRoute
+  '/historico': typeof HistoricoRoute
+  '/historico-online': typeof HistoricoOnlineRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/comandas-online': typeof ComandasOnlineRoute
+  '/gestao': typeof GestaoRoute
+  '/historico': typeof HistoricoRoute
+  '/historico-online': typeof HistoricoOnlineRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/comandas-online' | '/gestao' | '/historico' | '/historico-online'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/comandas-online' | '/gestao' | '/historico' | '/historico-online'
+  id:
+    | '__root__'
+    | '/'
+    | '/comandas-online'
+    | '/gestao'
+    | '/historico'
+    | '/historico-online'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ComandasOnlineRoute: typeof ComandasOnlineRoute
+  GestaoRoute: typeof GestaoRoute
+  HistoricoRoute: typeof HistoricoRoute
+  HistoricoOnlineRoute: typeof HistoricoOnlineRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +95,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/comandas-online': {
+      id: '/comandas-online'
+      path: '/comandas-online'
+      fullPath: '/comandas-online'
+      preLoaderRoute: typeof ComandasOnlineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao': {
+      id: '/gestao'
+      path: '/gestao'
+      fullPath: '/gestao'
+      preLoaderRoute: typeof GestaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historico': {
+      id: '/historico'
+      path: '/historico'
+      fullPath: '/historico'
+      preLoaderRoute: typeof HistoricoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/historico-online': {
+      id: '/historico-online'
+      path: '/historico-online'
+      fullPath: '/historico-online'
+      preLoaderRoute: typeof HistoricoOnlineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ComandasOnlineRoute: ComandasOnlineRoute,
+  GestaoRoute: GestaoRoute,
+  HistoricoRoute: HistoricoRoute,
+  HistoricoOnlineRoute: HistoricoOnlineRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
