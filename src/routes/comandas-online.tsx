@@ -169,7 +169,7 @@ function SharedOrdersPage() {
             </select>
             <input aria-label={"Quantidade do pedido " + order.order_number} className="w-24 border p-2 text-sm" type="number" min={1} max={100} step={1} value={quantity[order.id] ?? 1} onChange={e => setQuantity(prev => ({ ...prev, [order.id]: Number(e.target.value) }))} />
             <button type="button" disabled={!selection[order.id] || addingTo !== null} onClick={() => void addItem(order.id)} className="bg-[#315976] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{addingTo === order.id ? "Gravando..." : "Adicionar produto"}</button>
-          </div>
+          </div>}
         </section>;
       })}</div>
     </main>
