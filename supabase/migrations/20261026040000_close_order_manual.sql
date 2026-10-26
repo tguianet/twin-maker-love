@@ -1,0 +1,29 @@
+-- TGuia Food: atomic recording of payments manually confirmed by cashier.
+create or replace function public.close_order_manual(p_order_id uuid, p_method text)
+returns void language plpgsql security definer set search_path = ''
+as $$
+declare
+ v_order public.orders%rowtype;
+ v_total numeric(12,2);
+ v_rate numeric(5,2);
+ v_role public.member_role;
+begin
+ if (select auth.uid()) is null then raise exception 'Authentication required'; end if;
+ if p_method not in ('cash','pix','debit','credit') then raise exception 'Invalid payment method'; end if;
+ select * into v_order from public.orders where id=p_order_id for update;
+ if not found or v_order.status <> 'closing' then raise exception 'Order must be awaiting payment'; end if;
+ select role into v_role from public.organization_members
+ where organization_id=v_order.organization_id and user_id=(select auth.uid()) and active=true;
+ if v_role is null or v_role not in ('owner','admin','cashier') then raise exception 'Cashier permission required'; end if;
+ select service_rate into v_rate from public.organizations where id=v_order.organization_id;
+ select round(coalesce(sum(unit_price*quantity),0)*(1+coalesce(v_rate,0)/100),2)
+ into v_total from public.order_items where order_id=p_order_id;
+ if v_total is null or v_total<=0 then raise exception 'Cannot close empty order'; end if;
+ if exists (select 1 from public.order_payments where order_id=p_order_id) then raise exception 'Existing payment requires reconciliation'; end if;
+ insert into public.order_payments(order_id,method,amount,created_by)
+ values (p_order_id,p_method,v_total,(select auth.uid()));
+ update public.orders set status='closed',closed_at=now() where id=p_order_id;
+end;
+$$;
+revoke all on function public.close_order_manual(uuid,text) from public,anon;
+grant execute on function public.close_order_manual(uuid,text) to authenticated;
