@@ -20,6 +20,10 @@ function SharedOrdersPage() {
   const [tables, setTables] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedTableId, setSelectedTableId] = useState("");
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -69,22 +73,61 @@ function SharedOrdersPage() {
     // Refresh explicitly on organization changes, not on an interval.
     void Promise.resolve().then(refresh);
   }, [client, org]);
+  const createOrder = async () => {
+    if (!client || !org || !selectedTableId || saving) return;
+    if (!Object.prototype.hasOwnProperty.call(tables, selectedTableId)) {
+      setError("Selecione uma mesa válida da organização."); return;
+    }
+    setSaving(true); setError(""); setMessage("");
+    try {
+      const { data: session, error: authError } = await client.auth.getUser();
+      if (authError) throw authError;
+      if (!session.user) throw new Error("Sua sessão expirou. Entre novamente.");
+      const { data, error: createError } = await client.from("orders").insert({
+        organization_id: org, table_id: selectedTableId, order_type: "table", status: "open",
+        customer_name: newCustomerName.trim().slice(0, 120) || null,
+        created_by: session.user.id,
+      }).select("id, order_number").single();
+      if (createError) {
+        if (createError.code === "23505") throw new Error("Já existe uma comanda aberta para esta mesa. Atualize a lista.");
+        throw createError;
+      }
+      setMessage("Comanda #" + data.order_number + " aberta no Supabase. Adição de itens será habilitada após homologação.");
+      setSelectedTableId(""); setNewCustomerName("");
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível abrir a comanda.");
+    } finally { setSaving(false); }
+  };
   return <div className="min-h-screen bg-[#f3f6f9] text-[#273142]">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-[#e3eaf1] px-5 py-3">
-      <div><strong>TGuia Food</strong><span className="ml-3 text-sm">Comandas compartilhadas — somente leitura</span></div>
+      <div><strong>TGuia Food</strong><span className="ml-3 text-sm">Comandas compartilhadas</span></div>
       <a href="/" className="border bg-white px-4 py-2 text-sm">Voltar às mesas</a>
     </header>
     <main className="mx-auto max-w-5xl p-5">
       <h1 className="mb-2 text-xl font-bold">Pedidos no Supabase</h1>
-      <p className="mb-4 border border-blue-200 bg-blue-50 p-3 text-sm">Consulta de pedidos abertos da organização autorizada. Nenhum pedido, pagamento ou estoque será alterado nesta tela.</p>
+      <p className="mb-4 border border-blue-200 bg-blue-50 p-3 text-sm">Nesta etapa, apenas a abertura de uma comanda vazia é permitida. Não há lançamento de produtos, recebimento de pagamentos ou movimentação de estoque.</p>
       {error && <p role="alert" className="mb-3 border border-red-300 bg-red-50 p-3 text-sm">{error}</p>}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select aria-label="Organização" className="border bg-white p-2" value={org} onChange={e => { setOrg(e.target.value); setOrders([]); setTables({}); }}>
+        <select aria-label="Organização" className="border bg-white p-2" value={org} onChange={e => { setOrg(e.target.value); setOrders([]); setTables({}); setSelectedTableId(""); setMessage(""); }}>
           <option value="">Selecione a organização</option>
           {memberships.map(m => <option key={m.organization_id} value={m.organization_id}>{m.organizations?.name || m.organization_id}</option>)}
         </select>
         <button disabled={!org || loading} onClick={() => void refresh()} className="border bg-white px-4 py-2 font-semibold disabled:opacity-50">{loading ? "Consultando..." : "Atualizar consulta"}</button>
       </div>
+      {message && <p role="status" className="mb-3 border border-green-200 bg-green-50 p-3 text-sm">{message}</p>}
+      {!!org && <section className="mb-5 rounded border border-[#c4d0da] bg-white p-4">
+        <h2 className="mb-2 font-bold">Abrir nova comanda no Supabase</h2>
+        <p className="mb-3 text-xs text-slate-600">A mesa deve existir no cadastro do banco e não possuir outra comanda aberta. Esta ação grava uma comanda real, porém sem itens ou pagamentos.</p>
+        <div className="flex flex-wrap gap-2">
+          <select aria-label="Mesa para nova comanda" className="min-w-[180px] flex-1 border p-2" value={selectedTableId} onChange={e => setSelectedTableId(e.target.value)}>
+            <option value="">Selecione uma mesa</option>
+            {Object.entries(tables).sort((a,b) => a[1]-b[1]).map(([id,number]) => <option key={id} value={id}>Mesa {number}</option>)}
+          </select>
+          <input aria-label="Nome opcional do cliente" maxLength={120} className="min-w-[180px] flex-1 border p-2" placeholder="Nome do cliente (opcional)" value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} />
+          <button type="button" disabled={saving || loading || !selectedTableId} onClick={() => void createOrder()} className="bg-[#315976] px-4 py-2 font-semibold text-white disabled:opacity-50">{saving ? "Gravando..." : "Abrir comanda"}</button>
+        </div>
+      </section>}
       {authReady && !!org && orders.length === 0 && !loading && !error && <p className="p-4 text-sm">Nenhuma comanda aberta encontrada.</p>}
       <div className="space-y-3">{orders.map(order => {
         const subtotal = order.order_items.reduce((n, item) => n + item.quantity * item.unit_price, 0);
