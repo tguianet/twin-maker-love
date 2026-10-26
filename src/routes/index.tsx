@@ -89,6 +89,9 @@ function Index() {
   const [supabase,setSupabase] = useState<SupabaseClient|null>(null);
   const [selectedLiveTable, setSelectedLiveTable] = useState<{id:string;number:number}|null>(null);
   const [liveBusy, setLiveBusy] = useState(false);
+  const [liveCustomerName,setLiveCustomerName] = useState("");
+  const [liveCustomerSaved,setLiveCustomerSaved] = useState("");
+  const [liveCustomerSaving,setLiveCustomerSaving] = useState(false);
   const [liveLoadFailed, setLiveLoadFailed] = useState(false);
   const [liveNotice, setLiveNotice] = useState("");
   const [liveProducts, setLiveProducts] = useState<{id:string;name:string;sale_price:number}[]>([]);
@@ -152,16 +155,18 @@ function Index() {
   const openLiveTable = async (table:{id:string;number:number}) => {
     if (!liveOrg || !supabase) return;
     setSelectedLiveTable(table); setLiveBusy(true); setLiveNotice(""); setLiveLoadFailed(false);
-    setLiveOrder(null); setLiveItems([]); setLiveSelectedProduct(""); setLiveQty(1);
+    setLiveOrder(null); setLiveItems([]); setLiveSelectedProduct(""); setLiveQty(1); setLiveCustomerName(""); setLiveCustomerSaved("");
     try {
       const [orderResult,productResult,orgResult] = await Promise.all([
-        supabase.from("orders").select("id,status,order_number,order_items(id,product_name,quantity,unit_price)").eq("organization_id",liveOrg).eq("table_id",table.id).in("status",["open","closing"]).maybeSingle(),
+        supabase.from("orders").select("id,status,order_number,customer_name,order_items(id,product_name,quantity,unit_price)").eq("organization_id",liveOrg).eq("table_id",table.id).in("status",["open","closing"]).maybeSingle(),
         supabase.from("products").select("id,name,sale_price").eq("organization_id",liveOrg).eq("active",true).order("name"),
         supabase.from("organizations").select("service_rate").eq("id",liveOrg).single(),
       ]);
       if (orderResult.error || productResult.error || orgResult.error) throw orderResult.error || productResult.error || orgResult.error;
       setLiveOrder(orderResult.data ? {id:orderResult.data.id,status:orderResult.data.status,order_number:orderResult.data.order_number} : null);
       setLiveItems(orderResult.data?.order_items || []);
+      setLiveCustomerName(orderResult.data?.customer_name || "");
+      setLiveCustomerSaved(orderResult.data?.customer_name || "");
       setLiveProducts(productResult.data || []);
       setLiveRate(Number(orgResult.data?.service_rate || 0));
       const {data: currentOrders, error: refreshError} = await supabase.from("orders")
@@ -171,6 +176,23 @@ function Index() {
     } catch(e) { setLiveLoadFailed(true); setLiveNotice(e instanceof Error ? e.message : "Erro ao consultar mesa."); }
     finally { setLiveBusy(false); }
   };
+  const saveLiveCustomer = async () => {
+    if (!supabase || !liveOrg || !liveOrder || liveCustomerSaving || liveLoadFailed) return;
+    const name=liveCustomerName.trim().slice(0,120);
+    if (name===liveCustomerSaved) return;
+    setLiveCustomerSaving(true);
+    try {
+      const {data,error}=await supabase.from("orders").update({customer_name:name||null})
+        .eq("id",liveOrder.id).eq("organization_id",liveOrg).in("status",["open","closing"])
+        .select("id").maybeSingle();
+      if (error) throw error;
+      if (!data) throw Error("Comanda alterada. Atualize e tente novamente.");
+      setLiveCustomerSaved(name);
+      setLiveOrders(prev=>prev.map(order=>order.table_id===selectedLiveTable?.id?{...order,customer_name:name||null}:order));
+      setLiveNotice("Nome salvo na comanda.");
+    } catch(e) { setLiveNotice(e instanceof Error?e.message:"Falha ao salvar o nome."); }
+    finally { setLiveCustomerSaving(false); }
+  };
   const saveLiveOrder = async () => {
     if (!selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed) return;
     setLiveBusy(true); setLiveNotice("");
@@ -178,7 +200,7 @@ function Index() {
       if (!liveOrder) {
         const {data:auth} = await supabase.auth.getUser();
         if (!auth.user) throw Error("Faça login na Gestão.");
-        const {error} = await supabase.from("orders").insert({organization_id:liveOrg,table_id:selectedLiveTable.id,order_type:"table",status:"open",created_by:auth.user.id});
+        const {error} = await supabase.from("orders").insert({organization_id:liveOrg,table_id:selectedLiveTable.id,order_type:"table",status:"open",customer_name:liveCustomerName.trim().slice(0,120)||null,created_by:auth.user.id});
         if (error) throw error;
       } else {
         if (liveOrder.status !== "open" || !liveSelectedProduct) throw Error("Selecione um produto para uma comanda aberta.");
@@ -345,6 +367,7 @@ function Index() {
           <div className="flex items-center justify-between border-b bg-[#e3eaf1] p-3"><strong>Mesa {selectedLiveTable.number} · {liveOrder ? "Comanda #" + liveOrder.order_number : "Livre"}</strong><button onClick={() => setSelectedLiveTable(null)} className="border bg-white px-3 py-1">Fechar ×</button></div>
           <div className="space-y-3 p-4">
             {liveNotice && <p role="status" className="border border-amber-300 bg-amber-50 p-2">{liveNotice}</p>}
+            <label className="flex items-center gap-2 border-b pb-3"><span className="shrink-0 font-semibold">Nome do cliente:</span><input aria-label="Nome do cliente da mesa" maxLength={120} value={liveCustomerName} onChange={e=>setLiveCustomerName(e.target.value)} onBlur={()=>void saveLiveCustomer()} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}} placeholder="Digite o nome" className="min-w-0 flex-1 border border-[#b7c2cc] bg-white px-2 py-2"/><span role="status" className="text-[10px]">{liveCustomerSaving?"Salvando...":liveOrder?"Salva ao sair": "Salva ao abrir"}</span></label>
             <h2 className="font-bold">Itens da comanda</h2>
             <div className="min-h-32 border"><table className="w-full text-left"><thead className="bg-[#e9eff5]"><tr><th className="p-2">Produto</th><th className="p-2">Qtd.</th><th className="p-2">Valor</th></tr></thead><tbody>{liveItems.map(item=><tr key={item.id} className="border-t"><td className="p-2">{item.product_name}</td><td className="p-2">{item.quantity}</td><td className="p-2">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(item.quantity*item.unit_price)}</td></tr>)}</tbody></table></div>
             <p className="text-right font-bold">Total com serviço ({liveRate}%): {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(liveItems.reduce((n,i)=>n+i.quantity*i.unit_price,0)*(1+liveRate/100))}</p>
