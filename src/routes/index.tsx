@@ -101,6 +101,8 @@ function Index() {
   }, [liveNotice,liveNoticeSequence,selectedLiveTable]);
   const [liveProducts, setLiveProducts] = useState<{id:string;name:string;sale_price:number}[]>([]);
   const [liveSelectedProduct, setLiveSelectedProduct] = useState("");
+  const [liveProductPickerOpen, setLiveProductPickerOpen] = useState(false);
+  const [liveProductQuery, setLiveProductQuery] = useState("");
   const [liveQty, setLiveQty] = useState(1);
   const [liveOrder, setLiveOrder] = useState<{id:string;status:string;order_number:number}|null>(null);
   const [liveItems, setLiveItems] = useState<{id:string;product_name:string;quantity:number;unit_price:number}[]>([]);
@@ -159,7 +161,7 @@ function Index() {
 
   const openLiveTable = async (table:{id:string;number:number}) => {
     if (!liveOrg || !supabase) return;
-    setSelectedLiveTable(table); setLiveBusy(true); setLiveNotice(""); setLiveLoadFailed(false);
+    setSelectedLiveTable(table); setLiveProductPickerOpen(false); setLiveBusy(true); setLiveNotice(""); setLiveLoadFailed(false);
     setLiveOrder(null); setLiveItems([]); setLiveSelectedProduct(""); setLiveQty(1); setLiveCustomerName(""); setLiveCustomerSaved("");
     try {
       const [orderResult,productResult,orgResult] = await Promise.all([
@@ -211,6 +213,22 @@ function Index() {
     if (liveOrder && !liveLoadFailed && liveCustomerName.trim().slice(0,120) !== liveCustomerSaved) await saveLiveCustomer();
     setSelectedLiveTable(null);
   };
+  useEffect(() => {
+    if (!selectedLiveTable) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "F3" && (!liveOrder || liveOrder.status === "open")) {
+        event.preventDefault();
+        setLiveProductPickerOpen(true);
+      }
+      if (event.key === "Escape" && liveProductPickerOpen) {
+        event.preventDefault();
+        setLiveProductPickerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedLiveTable, liveOrder, liveProductPickerOpen]);
+
   const saveLiveOrder = async () => {
     if (!selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed) return;
     setLiveBusy(true); setLiveNotice("");
@@ -400,7 +418,7 @@ function Index() {
           <div className="flex min-h-[69px] shrink-0 items-center gap-4 border-b border-[#d3d3d3] px-4">
             <span className="text-[27px] font-bold text-[#2f9b61]">{String(selectedLiveTable.number).padStart(2,"0")}</span>
             <div className="flex-1"><div className="flex items-center gap-2"><b>Pedido {liveOrder?"#"+liveOrder.order_number:"novo"}</b><span className={"px-2 py-1 text-white "+(liveOrder?.status==="closing"?"bg-[#a47b22]":"bg-[#32935f]")}>{liveOrder?.status==="closing"?"Aguardando caixa":liveOrder?"Em Aberto":"Livre"}</span></div><p className="mt-1 text-[11px] text-gray-500">Atendimento conectado ao Supabase</p></div>
-            <span className="font-bold">Produtos (F3)</span>
+            <button type="button" disabled={liveBusy||liveLoadFailed||liveOrder?.status==="closing"} onClick={()=>{setLiveProductQuery("");setLiveProductPickerOpen(true);}} className="font-bold text-[#087cf0] hover:underline disabled:opacity-40">Produtos (F3)</button>
           </div>
           {liveNotice && <p role="status" className="shrink-0 border-b border-[#d1e6d5] bg-[#edf8ee] px-3 py-2 font-semibold text-[#256b38]">{liveNotice}</p>}
           <div className="flex min-h-0 flex-1">
@@ -438,6 +456,17 @@ function Index() {
         </section>
       </div>}
 
+      {selectedLiveTable && liveProductPickerOpen && <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4">
+        <section role="dialog" aria-modal="true" aria-label="Localizar produto do restaurante" className="flex max-h-[85vh] w-[620px] max-w-[95vw] flex-col border border-[#999] bg-white shadow-xl">
+          <div className="flex items-center justify-between border-b bg-[#e5e5e5] px-4 py-3"><strong>Localizar Produto</strong><button type="button" onClick={()=>setLiveProductPickerOpen(false)} aria-label="Fechar produtos" className="px-3 text-xl">×</button></div>
+          <input autoFocus aria-label="Buscar produto" value={liveProductQuery} onChange={e=>setLiveProductQuery(e.target.value)} placeholder="Buscar produto pelo nome..." className="m-3 border px-3 py-2" />
+          <div className="min-h-0 overflow-y-auto px-3 pb-3">
+            {liveProducts.filter(p=>p.name.toLocaleLowerCase("pt-BR").includes(liveProductQuery.trim().toLocaleLowerCase("pt-BR"))).map(p=><button type="button" key={p.id} onClick={()=>{setLiveSelectedProduct(p.id);setLiveProductPickerOpen(false);}} className="flex w-full items-center justify-between border-b px-2 py-3 text-left hover:bg-blue-50"><span>{p.name}</span><span className="font-semibold">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(p.sale_price))}</span></button>)}
+            {liveProducts.length===0&&<p className="p-3 text-sm text-amber-700">Nenhum produto ativo disponível neste restaurante.</p>}
+          </div>
+          <div className="border-t p-3 text-xs text-gray-600">Selecione um produto para incluí-lo na mesma comanda. O lançamento será confirmado pelo botão da mesa.</div>
+        </section>
+      </div>}
       {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
       <footer className="relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
         <div className="flex items-center space-x-2"><div className="h-4 w-8 border border-app-border bg-app-field" /><span className="text-app-text">Exibir Total da Conta e Duração</span></div>
