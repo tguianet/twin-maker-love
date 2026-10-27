@@ -135,9 +135,21 @@ function Index() {
       }
       const { error } = await supabase.rpc("close_order_manual", { p_order_id: liveOrder.id, p_method: method });
       if (error) throw error;
+      // Payment and order closure are committed atomically by close_order_manual.
+      // Remove the settled order locally before closing both dialogs, so the table
+      // becomes available immediately rather than reopening an empty order window.
+      const paidTableId = selectedLiveTable.id;
+      setLiveOrders(previous => previous.filter(order => order.table_id !== paidTableId));
       setLivePaymentOpen(false);
-      await openLiveTable(selectedLiveTable);
-      setLiveNotice("Pagamento registrado e comanda fechada.");
+      setSelectedLiveTable(null);
+      setLiveOrder(null);
+      setLiveItems([]);
+      // Reconcile with the database; never undo a successful payment if refresh fails.
+      const { data: currentOrders, error: refreshError } = await supabase.from("orders")
+        .select("table_id,status,customer_name").eq("organization_id", liveOrg)
+        .in("status", ["open", "closing"]);
+      if (!refreshError) setLiveOrders(currentOrders || []);
+      else setLiveError("Pagamento confirmado, mas não foi possível atualizar a grade de mesas. Atualize a página.");
     } catch (error) { setLivePaymentError(error instanceof Error ? error.message : "Falha ao registrar pagamento."); }
     finally { setLiveBusy(false); }
   };
