@@ -84,6 +84,8 @@ export function TableOrderModal() {
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
+      // The live Supabase table flow owns its clicks and modal exclusively.
+      if (target?.closest("[data-tguia-live-tables]")) return;
       const table = target?.closest<HTMLElement>(".table-box, .table-box-active");
       if (!table) return;
       const number = Array.from(table.querySelectorAll("span"))
