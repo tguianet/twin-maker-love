@@ -99,7 +99,10 @@ function Index() {
     const timeout = window.setTimeout(() => setLiveNotice(""), 3000);
     return () => window.clearTimeout(timeout);
   }, [liveNotice,liveNoticeSequence,selectedLiveTable]);
-  const [liveProducts, setLiveProducts] = useState<{id:string;name:string;sale_price:number}[]>([]);
+  const [liveProducts, setLiveProducts] = useState<{id:string;name:string;sale_price:number;category_id:string|null}[]>([]);
+  const [liveCategories, setLiveCategories] = useState<{id:string;name:string}[]>([]);
+  const [liveCategory, setLiveCategory] = useState("all");
+  const [liveBatch, setLiveBatch] = useState<Record<string,number>>({});
   const [liveSelectedProduct, setLiveSelectedProduct] = useState("");
   const [liveProductPickerOpen, setLiveProductPickerOpen] = useState(false);
   const [liveProductQuery, setLiveProductQuery] = useState("");
@@ -164,17 +167,19 @@ function Index() {
     setSelectedLiveTable(table); setLiveProductPickerOpen(false); setLiveBusy(true); setLiveNotice(""); setLiveLoadFailed(false);
     setLiveOrder(null); setLiveItems([]); setLiveSelectedProduct(""); setLiveQty(1); setLiveCustomerName(""); setLiveCustomerSaved("");
     try {
-      const [orderResult,productResult,orgResult] = await Promise.all([
+      const [orderResult,productResult,orgResult,categoriesResult] = await Promise.all([
         supabase.from("orders").select("id,status,order_number,customer_name,order_items(id,product_name,quantity,unit_price)").eq("organization_id",liveOrg).eq("table_id",table.id).in("status",["open","closing"]).maybeSingle(),
-        supabase.from("products").select("id,name,sale_price").eq("organization_id",liveOrg).eq("active",true).order("name"),
+        supabase.from("products").select("id,name,sale_price,category_id").eq("organization_id",liveOrg).eq("active",true).order("name"),
         supabase.from("organizations").select("service_rate").eq("id",liveOrg).single(),
+        supabase.from("product_categories").select("id,name").eq("organization_id",liveOrg).order("name"),
       ]);
-      if (orderResult.error || productResult.error || orgResult.error) throw orderResult.error || productResult.error || orgResult.error;
+      if (orderResult.error || productResult.error || orgResult.error || categoriesResult.error) throw orderResult.error || productResult.error || orgResult.error || categoriesResult.error;
       setLiveOrder(orderResult.data ? {id:orderResult.data.id,status:orderResult.data.status,order_number:orderResult.data.order_number} : null);
       setLiveItems(orderResult.data?.order_items || []);
       setLiveCustomerName(orderResult.data?.customer_name || "");
       setLiveCustomerSaved(orderResult.data?.customer_name || "");
       setLiveProducts(productResult.data || []);
+      setLiveCategories(categoriesResult.data || []);
       setLiveRate(Number(orgResult.data?.service_rate || 0));
       const {data: currentOrders, error: refreshError} = await supabase.from("orders")
         .select("table_id,status,customer_name").eq("organization_id",liveOrg).in("status",["open","closing"]);
@@ -258,6 +263,45 @@ function Index() {
       setLiveNoticeSequence(n=>n+1);
     } catch(e) { setLiveNotice(e instanceof Error ? e.message : "Falha ao salvar pedido."); }
     finally { setLiveBusy(false); }
+  };
+  const addLiveBatch = async () => {
+    if (!supabase || !liveOrg || !selectedLiveTable || liveBusy || liveLoadFailed || liveOrder?.status === "closing") return;
+    const entries = Object.entries(liveBatch).filter(([id,qty])=>liveProducts.some(p=>p.id===id)&&Number.isInteger(qty)&&qty>0&&qty<=100);
+    if (!entries.length) { setLiveNotice("Selecione a quantidade de pelo menos um produto."); return; }
+    setLiveBusy(true);
+    setLiveNotice("");
+    let orderId = liveOrder?.id;
+    let completed = 0;
+    try {
+      if (!orderId) {
+        const {data:auth} = await supabase.auth.getUser();
+        if (!auth.user) throw Error("Faça login na Gestão.");
+        const {data:existing,error:lookupError} = await supabase.from("orders").select("id,status").eq("organization_id",liveOrg).eq("table_id",selectedLiveTable.id).in("status",["open","closing"]).maybeSingle();
+        if (lookupError) throw lookupError;
+        if (existing?.status==="closing") throw Error("Esta mesa está em fechamento. Atualize a comanda.");
+        if (existing) orderId=existing.id;
+        else {
+          const {data:created,error:createError} = await supabase.from("orders").insert({organization_id:liveOrg,table_id:selectedLiveTable.id,order_type:"table",status:"open",customer_name:liveCustomerName.trim().slice(0,120)||null,created_by:auth.user.id}).select("id").single();
+          if (createError) throw createError;
+          orderId=created?.id;
+        }
+      }
+      if (!orderId) throw Error("Não foi possível abrir a comanda.");
+      for (const [productId,quantity] of entries) {
+        const {error} = await supabase.rpc("add_order_product",{p_order_id:orderId,p_product_id:productId,p_quantity:quantity});
+        if (error) throw error;
+        completed++;
+        setLiveBatch(prev=>{const next={...prev};delete next[productId];return next;});
+      }
+      setLiveProductPickerOpen(false);
+      setLiveNotice(`${completed} produto(s) lançado(s) na mesa com sucesso.`);
+      setLiveNoticeSequence(n=>n+1);
+    } catch(error) {
+      setLiveNotice(`Foram lançados ${completed} de ${entries.length} produtos. ${error instanceof Error?error.message:"Falha ao lançar produtos."}`);
+    } finally {
+      await openLiveTable(selectedLiveTable).catch(()=>{});
+      setLiveBusy(false);
+    }
   };
   const sendLiveOrderToCashier = async () => {
     if (!liveOrder || !selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed || liveOrder.status !== "open") return;
@@ -456,15 +500,26 @@ function Index() {
         </section>
       </div>}
 
-      {selectedLiveTable && liveProductPickerOpen && <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/50 p-4">
-        <section role="dialog" aria-modal="true" aria-label="Localizar produto do restaurante" className="flex max-h-[85vh] w-[620px] max-w-[95vw] flex-col border border-[#999] bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b bg-[#e5e5e5] px-4 py-3"><strong>Localizar Produto</strong><button type="button" onClick={()=>setLiveProductPickerOpen(false)} aria-label="Fechar produtos" className="px-3 text-xl">×</button></div>
-          <input autoFocus aria-label="Buscar produto" value={liveProductQuery} onChange={e=>setLiveProductQuery(e.target.value)} placeholder="Buscar produto pelo nome..." className="m-3 border px-3 py-2" />
-          <div className="min-h-0 overflow-y-auto px-3 pb-3">
-            {liveProducts.filter(p=>p.name.toLocaleLowerCase("pt-BR").includes(liveProductQuery.trim().toLocaleLowerCase("pt-BR"))).map(p=><button type="button" key={p.id} onClick={()=>{setLiveSelectedProduct(p.id);setLiveProductPickerOpen(false);}} className="flex w-full items-center justify-between border-b px-2 py-3 text-left hover:bg-blue-50"><span>{p.name}</span><span className="font-semibold">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(p.sale_price))}</span></button>)}
-            {liveProducts.length===0&&<p className="p-3 text-sm text-amber-700">Nenhum produto ativo disponível neste restaurante.</p>}
+      {selectedLiveTable && liveProductPickerOpen && <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/55 p-3">
+        <section role="dialog" aria-modal="true" aria-label="Localizar produto do restaurante" className="flex h-[760px] max-h-[95vh] w-[1024px] max-w-[98vw] flex-col overflow-hidden border border-[#777] bg-white text-[#273142] shadow-xl">
+          <div className="flex h-9 shrink-0 items-center justify-between border-b bg-gradient-to-b from-[#ededed] to-[#d6d6d6] px-3"><strong>Localizar Produto · Mesa {selectedLiveTable.number}</strong><button type="button" onClick={()=>setLiveProductPickerOpen(false)} aria-label="Fechar produtos" className="px-3 text-xl">×</button></div>
+          <div className="flex min-h-0 flex-1">
+            <aside className="grid w-[300px] max-w-[36%] shrink-0 auto-rows-[58px] grid-cols-2 content-start gap-2 overflow-y-auto bg-[#2b2b2b] p-2">
+              {[{id:"all",name:"Todas"},...liveCategories].map((c,i)=><button type="button" key={c.id} onClick={()=>setLiveCategory(c.id)} className={`px-2 text-center text-xs font-semibold ${liveCategory===c.id?"ring-2 ring-white":""} ${i%5===0?"bg-[#2587af] text-white":i%5===1?"bg-[#408a76] text-white":i%5===2?"bg-[#e8bc45] text-black":i%5===3?"bg-[#6c78a6] text-white":"bg-[#e87948] text-white"}`}>{c.name}</button>)}
+            </aside>
+            <div className="flex min-w-0 flex-1 flex-col">
+              <div className="border-b bg-[#f5f5f5] p-3"><input autoFocus aria-label="Buscar produto" value={liveProductQuery} onChange={e=>setLiveProductQuery(e.target.value)} placeholder="Pesquisar produto..." className="w-full border border-[#ccc] p-2 text-sm"/></div>
+              <div className="grid grid-cols-[1fr_90px_155px] border-b bg-[#f2f2f2] px-3 py-2 text-xs font-bold"><span>Produto</span><span>Preço</span><span className="text-center">Quantidade</span></div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {liveProducts.filter(p=>(liveCategory==="all"||p.category_id===liveCategory)&&p.name.toLocaleLowerCase("pt-BR").includes(liveProductQuery.trim().toLocaleLowerCase("pt-BR"))).map(p=><div key={p.id} className="grid min-h-[55px] grid-cols-[1fr_90px_155px] items-center gap-1 border-b px-3 text-sm hover:bg-[#edf5fd]">
+                  <span className="min-w-0 truncate" title={p.name}>{p.name}</span><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(p.sale_price))}</span>
+                  <div className="flex items-center justify-center gap-1"><button type="button" aria-label={`Diminuir ${p.name}`} disabled={liveBusy} onClick={()=>setLiveBatch(prev=>({...prev,[p.id]:Math.max(0,(prev[p.id]||0)-1)}))} className="h-9 w-9 border bg-[#e8e8e8] text-xl">−</button><input aria-label={`Quantidade ${p.name}`} type="number" min={0} max={100} disabled={liveBusy} value={liveBatch[p.id]||0} onChange={e=>setLiveBatch(prev=>({...prev,[p.id]:Math.max(0,Math.min(100,Math.trunc(Number(e.target.value)||0)))}))} className="h-9 w-[52px] border text-center"/><button type="button" aria-label={`Aumentar ${p.name}`} disabled={liveBusy} onClick={()=>setLiveBatch(prev=>({...prev,[p.id]:Math.min(100,(prev[p.id]||0)+1)}))} className="h-9 w-9 border bg-[#cce7fb] text-xl">+</button></div>
+                </div>)}
+                {!liveProducts.length&&<p className="p-4 text-sm">Nenhum produto ativo cadastrado neste restaurante.</p>}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-[#f4f4f4] p-3"><span className="text-sm font-semibold">{Object.values(liveBatch).reduce((n,q)=>n+q,0)} unidade(s) selecionada(s)</span><button type="button" disabled={liveBusy||Object.values(liveBatch).every(q=>q<=0)} onClick={()=>void addLiveBatch()} className="bg-[#3d3d3d] px-5 py-3 font-bold text-white disabled:opacity-40">{liveBusy?"Lançando...":"Adicionar selecionados à mesa"}</button></div>
+            </div>
           </div>
-          <div className="border-t p-3 text-xs text-gray-600">Selecione um produto para incluí-lo na mesma comanda. O lançamento será confirmado pelo botão da mesa.</div>
         </section>
       </div>}
       {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
