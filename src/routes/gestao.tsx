@@ -35,7 +35,7 @@ function Gestao() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [tab, setTab] = useState<"produtos" | "geladeira" | "mesas">("produtos");
+  const [tab, setTab] = useState<"produtos" | "categorias" | "complementos" | "observacoes" | "tipos" | "insumos" | "geladeira" | "mesas">("produtos");
   const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [tableNumber, setTableNumber] = useState("");
   const [tableEnd, setTableEnd] = useState("");
@@ -235,12 +235,15 @@ function Gestao() {
                 <button type="button" className={btn + " mt-2"} onClick={() => void loadOrganizations()}>Verificar acesso novamente</button>
               </div>
             )}
-            <nav className="mb-5 flex gap-2 border-b border-[#acbac8] pb-2">
+            <nav className="mb-5 flex flex-wrap gap-2 border-b border-[#acbac8] bg-[#e2e2e2] p-2">
               <button className={btn + (tab === "produtos" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("produtos")}>Produtos</button>
-              <button className={btn + (tab === "geladeira" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("geladeira")}>Geladeira / Estoque</button>
+              {([["complementos","Complementos"],["observacoes","Observações"],["categorias","Categorias"],["tipos","Tipos e Tamanhos"],["insumos","Insumos"]] as const).map(([id,label])=><button type="button" key={id} className={btn + (tab===id?" border-[#2278aa] bg-white text-[#1160a2]":"")} onClick={()=>setTab(id)}>{label}</button>)}
+              <button className={btn + (tab === "geladeira" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("geladeira")}>Estoque</button>
               <button className={btn + (tab === "mesas" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("mesas")}>Mesas e Categorias</button>
             </nav>
-            {tab === "mesas" ? <div className="grid gap-5 lg:grid-cols-2">
+            {tab === "categorias" ? <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="text-lg font-bold">Categorias de produtos</h2><p className="text-xs text-slate-600">As categorias são compartilhadas com o cadastro real de produtos no Supabase.</p><form onSubmit={addCategory} className="flex flex-wrap gap-2"><input aria-label="Nome da categoria" maxLength={100} required className={field} value={categoryName} onChange={e=>setCategoryName(e.target.value)} placeholder="Ex.: Bebidas" /><button disabled={busy||!orgId} className={btn}>Cadastrar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(category=><span key={category.id} className="border bg-[#e9eff5] px-3 py-2">{category.name}</span>)}</div>{!categories.length&&<p>Nenhuma categoria cadastrada.</p>}</section>
+            : (tab === "complementos" || tab === "observacoes" || tab === "tipos" || tab === "insumos") ? <section className="border border-[#c4d0da] bg-white p-5"><h2 className="mb-2 text-lg font-bold">{{complementos:"Complementos",observacoes:"Observações",tipos:"Tipos e Tamanhos",insumos:"Insumos"}[tab]}</h2><p className="text-sm">Área de organização de produtos, seguindo o modelo do PDV de referência.</p><p className="mt-3 border-l-4 border-amber-400 bg-amber-50 p-3 text-sm">O cadastro desta seção ainda não está disponível no banco de dados. Nenhuma alteração será gravada até a integração ser implementada e validada.</p></section>
+            : tab === "mesas" ? <div className="grid gap-5 lg:grid-cols-2">
               <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="font-bold">Cadastrar mesas</h2><form onSubmit={addTable} className="flex gap-2"><input aria-label="Número da mesa" type="number" min={1} max={9999} required className={field} value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="Mesa inicial" /><input aria-label="Mesa final opcional" type="number" min={1} max={9999} className={field} value={tableEnd} onChange={e => setTableEnd(e.target.value)} placeholder="Final (opcional)" /><button disabled={busy || !orgId} className={btn}>Cadastrar</button></form><p className="text-sm">{tables.length} mesas cadastradas</p><div className="flex flex-wrap gap-2">{tables.map(t => <span key={t.id} className="rounded border bg-[#e9eff5] px-3 py-2 text-sm">Mesa {t.number}</span>)}</div></section>
               <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="font-bold">Categorias de produtos</h2><form onSubmit={addCategory} className="flex gap-2"><input aria-label="Nome da categoria" maxLength={100} required className={field} value={categoryName} onChange={e => setCategoryName(e.target.value)} placeholder="Ex.: Bebidas" /><button disabled={busy || !orgId} className={btn}>Cadastrar</button></form><div className="flex flex-wrap gap-2">{categories.map(c => <span key={c.id} className="rounded border bg-[#e9eff5] px-3 py-2 text-sm">{c.name}</span>)}</div></section>
             </div> : tab === "produtos" ? <div className="grid gap-5 lg:grid-cols-[350px_1fr]">
