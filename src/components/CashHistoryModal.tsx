@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Session = { id:string; opened_at:string; closed_at:string|null; opening_balance:number; opening_note:string|null; closing_note:string|null; opened_by:string };
-type CashMove = { session_id:string; direction:string; amount:number; method:string };
-type Receipt = { cash_session_id:string|null; amount:number; method:string };
+type CashMove = { id:string; session_id:string; created_at:string; description:string; direction:string; amount:number; method:string };
+type Receipt = { id:string; cash_session_id:string|null; created_at:string; amount:number; method:string; orders:{order_number:number; customer_name:string|null}|null };
 const currency = (amount:number) => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(amount);
 const dateTime = (value:string|null) => value ? new Date(value).toLocaleString("pt-BR") : "—";
 
@@ -35,13 +35,13 @@ export function CashHistoryModal({onClose}:{onClose:()=>void}) {
       let payments:Receipt[]=[];
       if(ids.length){
         const [m,p]=await Promise.all([
-          supabase.from("cash_movements").select("session_id,direction,amount,method").in("session_id",ids),
-          supabase.from("order_payments").select("cash_session_id,amount,method").in("cash_session_id",ids)
+          supabase.from("cash_movements").select("id,session_id,created_at,description,direction,amount,method").in("session_id",ids),
+          supabase.from("order_payments").select("id,cash_session_id,created_at,amount,method,orders(order_number,customer_name)").in("cash_session_id",ids)
         ]);
         if(m.error)throw m.error;
         if(p.error)throw p.error;
         movements=(m.data||[]) as CashMove[];
-        payments=(p.data||[]) as Receipt[];
+        payments=(p.data||[]).map(row=>({...row,orders:Array.isArray(row.orders)?row.orders[0]||null:row.orders||null})) as Receipt[];
       }
       setSessions(list);setMoves(movements);setReceipts(payments);
     }catch(e){setError(e instanceof Error?e.message:"Falha na consulta do histórico.");}
@@ -115,11 +115,55 @@ export function CashHistoryModal({onClose}:{onClose:()=>void}) {
           </div>
         </main>
       </div>
-      {active&&<div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 p-4"><section role="dialog" aria-modal="true" aria-label="Detalhes do caixa" className="w-full max-w-md border bg-white p-5 shadow-xl">
-        <div className="mb-3 flex justify-between"><strong>Detalhes do caixa {active.id.slice(0,8)}</strong><button onClick={()=>setSelected(null)} aria-label="Fechar detalhes">×</button></div>
-        <p>Abertura: {dateTime(active.opened_at)}</p><p>Fechamento: {dateTime(active.closed_at)}</p><p>Saldo inicial: {currency(Number(active.opening_balance))}</p><p>Recebimentos: {currency(sums(active.id).received)}</p><p>Saldo final calculado: {currency(sums(active.id).total)}</p><p className="mt-2">Observação: {active.opening_note||"—"}</p><p>Observação de fechamento: {active.closing_note||"—"}</p>
-        <button onClick={()=>setSelected(null)} className="mt-4 border px-4 py-2">Voltar</button>
-      </section></div>}
+      {active&&<div className="absolute inset-0 z-10 flex items-center justify-center bg-[#162332]/85 p-2">
+        <section role="dialog" aria-modal="true" aria-label="Histórico detalhado do caixa" className="flex h-[645px] max-h-[96vh] w-full max-w-[1192px] flex-col overflow-hidden border border-[#555] bg-[#ededed] shadow-2xl">
+          <header className="flex h-[30px] shrink-0 items-center justify-between bg-[#343434] px-3 text-white"><strong>Histórico - Caixa {active.id.slice(0,8)} · {active.closed_at?"Fechado":"Aberto"}</strong><button type="button" onClick={()=>setSelected(null)} aria-label="Fechar histórico detalhado" className="px-3 text-lg hover:bg-red-600">×</button></header>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 lg:flex-row lg:overflow-hidden">
+            <aside className="flex w-full shrink-0 flex-col justify-between lg:w-[215px]">
+              <div className="space-y-4">
+                <div className={`py-2.5 text-center text-[15px] font-bold text-white ${active.closed_at?"bg-[#dc3541]":"bg-[#31935b]"}`}>{active.closed_at?"Caixa Fechado":"Caixa Aberto"}</div>
+                <label className="block text-[#777]">Saldo inicial (dinheiro):<input readOnly value={currency(Number(active.opening_balance))} className="mt-1 block w-36 border border-[#aaa] bg-[#e5e5e5] px-2 py-1 text-right"/></label>
+                <div><div className="mb-1 text-[#777]">Observação:</div><div className="min-h-[100px] border border-[#aaa] bg-white p-2">{active.opening_note||"Sem observação"}</div></div>
+              </div>
+              <div className="space-y-4 pb-8 pt-4"><div><b>Data / Hora de abertura:</b><p>{dateTime(active.opened_at)}</p></div><div><b>Data / Hora de fechamento:</b><p>{dateTime(active.closed_at)}</p></div></div>
+            </aside>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <div className="mb-3 flex items-baseline justify-between gap-2"><strong className="text-lg">Caixa {active.id.slice(0,8)}</strong><span className={active.closed_at?"text-red-600":"text-green-700"}>ID do Caixa: [{active.closed_at?"Fechado":"Aberto"}]</span></div>
+              <div className="flex min-h-[270px] flex-1 flex-col border border-[#aaa] bg-white">
+                <div className="border-b bg-[#ddd] px-3 py-2 font-semibold">Movimentação</div>
+                <div className="min-h-0 flex-1 overflow-auto">
+                  <table className="w-full min-w-[530px] border-collapse text-left text-[11px]">
+                    <thead className="sticky top-0 bg-[#f1f1f1]"><tr>{["Data / Hora","Descrição","Entrada","Saída","Forma Pagto."].map(col=><th key={col} className="border-b border-r px-2 py-2 font-normal">{col}</th>)}</tr></thead>
+                    <tbody>
+                      <tr><td className="border-b px-2 py-2">{dateTime(active.opened_at)}</td><td className="border-b px-2 py-2">SALDO INICIAL</td><td className="border-b px-2 py-2 text-right text-blue-600">{currency(Number(active.opening_balance))}</td><td className="border-b px-2 py-2"></td><td className="border-b px-2 py-2">Dinheiro</td></tr>
+                      {[...moves.filter(m=>m.session_id===active.id).map(m=>({id:m.id,at:m.created_at,description:m.description,amount:Number(m.amount),direction:m.direction,method:m.method})),...receipts.filter(p=>p.cash_session_id===active.id).map(p=>({id:p.id,at:p.created_at,description:`Pedido nº ${p.orders?.order_number??"—"}${p.orders?.customer_name?" · "+p.orders.customer_name:""}`,amount:Number(p.amount),direction:"in",method:p.method}))].sort((a,b)=>a.at.localeCompare(b.at)).map(row=><tr key={row.id} className="hover:bg-[#f3f8fc]"><td className="whitespace-nowrap border-b px-2 py-2">{dateTime(row.at)}</td><td className="border-b px-2 py-2">{row.description}</td><td className="border-b px-2 py-2 text-right text-blue-600">{row.direction==="in"?currency(row.amount):""}</td><td className="border-b px-2 py-2 text-right">{row.direction==="out"?currency(row.amount):""}</td><td className="border-b px-2 py-2">{({cash:"Dinheiro",pix:"Pix",credit:"Crédito",debit:"Débito",other:"Outros"} as Record<string,string>)[row.method]||row.method}</td></tr>)}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-end gap-5 border-t p-2 font-bold"><span>Entradas: {currency(sums(active.id).received+sums(active.id).inTotal)}</span><span>Saídas: {currency(sums(active.id).outTotal)}</span></div>
+                <button type="button" onClick={()=>window.print()} className="self-start border-t px-4 py-2">▤ Imprimir</button>
+              </div>
+            </div>
+            <aside className="flex min-h-[270px] w-full shrink-0 flex-col lg:w-[290px] lg:pt-9">
+              <div className="flex min-h-0 flex-1 flex-col border border-[#aaa] bg-white">
+                <div className="border-b bg-[#ddd] px-3 py-2 font-semibold">Resumo</div>
+                <div className="flex-1 space-y-4 overflow-auto p-3 text-[11px]">
+                  <div className="flex justify-between"><span>(+) SALDO INICIAL:</span><b>{currency(Number(active.opening_balance))}</b></div>
+                  <div>(+) ENTRADAS NO CAIXA</div>
+                  <div className="pl-2 text-[#777]">PEDIDOS</div>
+                  {["cash","pix","credit","debit","other"].map(method=>{const n=receipts.filter(p=>p.cash_session_id===active.id&&p.method===method).reduce((s,p)=>s+Number(p.amount),0);return n>0?<div key={method} className="flex justify-between gap-2 pl-2"><span>{({cash:"Dinheiro",pix:"Pix",credit:"Cartão de Crédito",debit:"Cartão de Débito",other:"Outros"} as Record<string,string>)[method]}</span><strong className="text-blue-600">{currency(n)}</strong></div>:null;})}
+                  <div className="flex justify-between pl-2"><span>Outras entradas:</span><b className="text-blue-600">{currency(sums(active.id).inTotal)}</b></div>
+                  <div className="flex justify-between border-t pt-2"><span>TOTAL - ENTRADAS</span><b className="text-blue-600">{currency(sums(active.id).received+sums(active.id).inTotal)}</b></div>
+                  <div>(-) SAÍDAS DO CAIXA</div><div className="flex justify-between pl-2"><span>Saídas registradas:</span><b>{currency(sums(active.id).outTotal)}</b></div>
+                  <div className="flex justify-between border-t pt-2 font-bold"><span>(=) SALDO FINAL CALCULADO</span><span>{currency(sums(active.id).total)}</span></div>
+                  <p className="text-[10px] text-gray-500">Resumo calculado com os recebimentos e movimentos associados a este turno; não representa conferência física informada.</p>
+                </div>
+                <button type="button" onClick={()=>window.print()} className="border-t px-4 py-2 text-left">▤ Imprimir</button>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </div>}
     </section>
   </div>;
 }
