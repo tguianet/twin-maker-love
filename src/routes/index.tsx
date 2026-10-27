@@ -50,7 +50,7 @@ const icon = (path: string, className: string) => (
 );
 
 function RibbonButton({ width, children, svg, href, onClick }: { width: string; children: React.ReactNode; svg: React.ReactNode; href?: string; onClick?:()=>void }) {
-  const className = `ribbon-button flex flex-col items-center justify-start rounded-sm border border-transparent p-1 ${width}`;
+  const className = `flex h-[68px] ${width} shrink-0 flex-col items-center justify-center gap-1 rounded-sm px-1 text-center text-[11px] text-[#333] transition-colors hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500`;
   if (href) return <a href={href} className={className}>{svg}<span className="leading-tight">{children}</span></a>;
   return <button type="button" onClick={onClick} className={className}>{svg}<span className="leading-tight">{children}</span></button>;
 }
@@ -387,46 +387,37 @@ function Index() {
   const ongoingCount = 1 + closingTables.length;
 
   return (
-    <div className={"relative mx-auto flex select-none flex-col bg-background text-app-text "+(embedded?"h-screen w-full":"h-[1080px] w-[1920px]")}>
-      <header className={(embedded?"hidden ":"")+"flex h-8 items-center justify-between border-b border-app-border bg-app-chrome px-2 text-xs"}>
-        <div className="flex space-x-1">
-          <button className="translate-y-[1px] border-b-background border-l border-r border-t border-app-border bg-background px-3 py-1 font-semibold text-app-blue">PRINCIPAL</button>
-          <a href="/produtos" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">PRODUTOS</a>
-          {["FINANCEIRO", "CONFIGURAÇÕES", "APPS"].map((t) => (
-            <button key={t} className="px-3 py-1 text-app-muted hover:bg-app-chrome-hover">{t}</button>
-          ))}
-          <a href="/gestao" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">GESTÃO / GELADEIRA</a>
-          <a href="/historico" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">HISTÓRICO LOCAL</a>
-          <a href="/comandas-online" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">COMANDAS ONLINE</a>
-        </div>
-        <div className="flex space-x-0">
-          <button className="flex h-8 w-8 items-center justify-center text-app-muted hover:bg-app-chrome-hover">_</button>
-          <button className="flex h-8 w-8 items-center justify-center text-app-muted hover:bg-app-chrome-hover">□</button>
-          <button className="flex h-8 w-8 items-center justify-center text-app-muted hover:bg-app-close hover:text-app-on-dark">✕</button>
+    <div className={"relative mx-auto flex min-h-screen w-full select-none flex-col bg-white text-[#303030] "+(embedded?"h-screen":"")}>
+      <header className={(embedded?"hidden ":"")+"shrink-0 bg-[#383838] text-white"}>
+        <div className="flex h-9 items-end gap-0 overflow-x-auto px-2 text-[11px]">
+          <span className="shrink-0 rounded-t-sm bg-[#e6e6e6] px-4 py-3 font-semibold text-[#333]">PRINCIPAL</span>
+          <a href="/produtos" className="shrink-0 px-3 py-3 hover:bg-[#505050]">PRODUTOS</a>
+          {["MARKETING","FINANCEIRO","RELATÓRIOS","APPS","CONFIGURAÇÕES"].map(label=><span key={label} className="shrink-0 px-3 py-3 text-[#d0d0d0]">{label}</span>)}
+          <span className="shrink-0 px-3 py-3 text-[#ccc]">⌕ Pesquisar</span>
         </div>
       </header>
 
-      <nav className={(embedded?"hidden ":"")+"flex h-[88px] items-stretch border-b border-app-border bg-app-ribbon text-center text-xs"}>
-        <div className="relative flex min-w-[130px] items-stretch border-r border-app-border px-1 pb-1 pt-1">
+      <nav className={(embedded?"hidden ":"")+"flex h-[104px] shrink-0 items-stretch overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-center text-xs text-[#333]"}>
+        <div className="relative flex min-w-[165px] shrink-0 items-stretch border-r border-[#c9c9c9] px-2.5 pb-2 pt-1.5">
           <div className="flex w-full justify-center space-x-1">
             <RibbonButton onClick={() => setCashOpen(true)} width="w-20" svg={icon("M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", "text-app-icon-blue")}>Abrir / Fechar<br />Meu Caixa</RibbonButton>
             <RibbonButton onClick={()=>setCashHistoryOpen(true)} width="w-20" svg={icon("M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", "text-app-icon-navy")}>Histórico<br />do Caixa</RibbonButton>
           </div>
-          <div className="absolute bottom-0 left-0 w-full pb-0.5 text-center text-[10px] text-app-muted">Caixa</div>
+          <div className="absolute bottom-0 left-0 w-full pb-1 text-center text-[10px] text-[#858585]">Caixa</div>
         </div>
 
-        <div className="relative flex items-stretch border-r border-app-border px-1 pb-1 pt-1">
+        <div className="relative flex shrink-0 items-stretch border-r border-[#c9c9c9] px-2.5 pb-2 pt-1.5">
           <div className="flex w-full justify-center space-x-1">
             <RibbonButton width="w-24" svg={icon("M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4", "text-app-icon-yellow")}>Mesas / Comandas<br /><span className="font-semibold">(F3)</span></RibbonButton>
             <RibbonButton width="w-24" svg={icon("M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z", "text-app-icon-red")}>Pedidos Delivery<br /><span className="font-semibold">(F4)</span></RibbonButton>
             <RibbonButton width="w-24" svg={icon("M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4", "text-app-icon-green")}>Pedido no Caixa<br /><span className="font-semibold">(F5)</span></RibbonButton>
             <RibbonButton width="w-20" svg={icon("M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9", "text-app-icon-sky")}>Cardápio<br />Online</RibbonButton>
           </div>
-          <div className="absolute bottom-0 left-0 w-full pb-0.5 text-center text-[10px] text-app-muted">Vendas</div>
+          <div className="absolute bottom-0 left-0 w-full pb-1 text-center text-[10px] text-[#858585]">Vendas</div>
         </div>
       </nav>
 
-      <div className={(embedded?"hidden ":"")+"flex h-12 shrink-0 items-center justify-between border-b border-app-border bg-background px-4 shadow-sm"}>
+      <div className={(embedded?"hidden ":"")+"flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#c9c9c9] bg-white px-4 py-2"}>
         <div className="flex items-center space-x-4">
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2">
@@ -442,6 +433,7 @@ function Index() {
         </div>
       </div>
 
+      <div className={(embedded?"hidden ":"")+"flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-[#ddd] bg-[#f4f4f4] px-4 py-1.5 text-[11px] text-[#27639a]"}><a href="/gestao" className="hover:underline">GESTÃO / GELADEIRA</a><a href="/historico" className="hover:underline">HISTÓRICO LOCAL</a><a href="/comandas-online" className="hover:underline">COMANDAS ONLINE</a></div>
       <main className="app-scrollbar-hide flex flex-1 flex-col overflow-y-auto bg-background p-6">
         {liveLoading && <p className="mb-3 text-sm">Verificando mesas online...</p>}
         {!liveLoading && liveTables !== null ?
