@@ -75,12 +75,12 @@ function ProductsPDV(){
    <iframe title="Mesas do restaurante ao fundo" src="/" tabIndex={-1} className="absolute inset-0 h-full w-full border-0" />
    {stack.length>0&&<div className="absolute inset-0 bg-black/40" aria-hidden="true"/>}
    <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
-   {view&&<section className="pointer-events-auto w-full max-w-[1060px] overflow-hidden border border-[#777] bg-white shadow-xl">
-    <div className="flex items-center justify-between bg-[#3e3e3e] px-3 py-2 text-xs font-semibold text-white"><span>{labels[view]} — TGuia Food</span><button type="button" onClick={closePanel} aria-label="Fechar janela" className="px-3 text-lg hover:bg-red-700">×</button></div>
+   {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:`${28+i*34}px`,left:`calc(50% - min(530px, 46vw) + ${i*14}px)`,zIndex:20+i,width:"min(1060px,92vw)",height:"min(670px,calc(100vh - 220px))"}} className="pointer-events-auto flex flex-col overflow-hidden border border-[#777] bg-white shadow-2xl">
+    <div className="flex items-center justify-between bg-[#3e3e3e] px-3 py-2 text-xs font-semibold text-white"><span>{labels[panel]} — TGuia Food</span><button type="button" onClick={()=>{setStack(current=>current.filter(x=>x!==panel));if(view===panel)setView((stack.filter(x=>x!==panel).at(-1)||null) as typeof view);}} aria-label="Fechar janela" className="px-3 text-lg hover:bg-red-700">×</button></div>
    {error&&<p role="alert" className="border-b bg-red-50 p-3 text-sm text-red-700">{error}</p>}
    {notice&&<p role="status" className="border-b bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
    {!authenticated?<div className="p-5"><p role="status" className="mb-2">Conecte seu usuário de restaurante para consultar dados reais.</p><a href="/gestao" className="text-blue-700 underline">Entrar na Gestão</a></div>:
-   view==="products"?<div className="grid gap-4 p-4 lg:grid-cols-[320px_1fr]">
+   panel==="products"?<div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 lg:grid-cols-[320px_1fr]">
     <form onSubmit={save} className="space-y-3 border bg-[#f3f3f3] p-4">
      <h2 className="font-semibold">{edit?"Editar produto":"Novo produto"}</h2>
      <label className="block text-xs">Código<input className={field} value={form.code} maxLength={80} onChange={e=>setForm({...form,code:e.target.value})}/></label>
@@ -96,8 +96,8 @@ function ProductsPDV(){
       <tbody>{visible.map(p=><tr key={p.id} className="border-b hover:bg-[#eef5fb]"><td className="p-2">{p.code||"—"}</td><td className="p-2">{p.name}</td><td className="p-2">{money(Number(p.sale_price))}</td><td className="p-2">{p.active?"Ativo":"Inativo"}</td><td className="whitespace-nowrap p-2"><button className="mr-2 text-blue-700 underline" onClick={()=>{setEdit(p.id);setForm({code:p.code||"",name:p.name,sale_price:String(p.sale_price),category_id:p.category_id||"",active:p.active})}}>Editar</button><button disabled={busy} className="text-blue-700 underline" onClick={()=>void toggle(p)}>{p.active?"Desativar":"Ativar"}</button></td></tr>)}</tbody></table>
       {!visible.length&&<p className="p-4 text-gray-500">Nenhum produto encontrado.</p>}</div>
     </section>
-   </div>:view==="categories"?<div className="space-y-4 p-5"><h2 className="font-semibold">Categorias cadastradas</h2><form className="flex flex-wrap gap-2" onSubmit={addCategory}><input required value={categoryName} maxLength={100} onChange={e=>setCategoryName(e.target.value)} className={field+" max-w-sm"} placeholder="Nova categoria"/><button disabled={busy} className={button}>Adicionar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(x=><span key={x.id} className="border bg-[#eee] px-3 py-2">{x.name}</span>)}</div></div>:<div className="p-6"><h2 className="mb-2 text-base font-semibold">{labels[view]}</h2><p className="text-sm">Esta função ainda não está integrada ao cadastro real. Nenhuma informação será gravada até a implementação do módulo.</p></div>}
-   </section>}
+   </div>:panel==="categories"?<div className="min-h-0 flex-1 space-y-4 overflow-auto p-5"><h2 className="font-semibold">Categorias cadastradas</h2><form className="flex flex-wrap gap-2" onSubmit={addCategory}><input required value={categoryName} maxLength={100} onChange={e=>setCategoryName(e.target.value)} className={field+" max-w-sm"} placeholder="Nova categoria"/><button disabled={busy} className={button}>Adicionar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(x=><span key={x.id} className="border bg-[#eee] px-3 py-2">{x.name}</span>)}</div></div>:<div className="p-6"><h2 className="mb-2 text-base font-semibold">{labels[panel]}</h2><p className="text-sm">Esta função ainda não está integrada ao cadastro real. Nenhuma informação será gravada até a implementação do módulo.</p></div>}
+   </section>)}
    </div>
   </div>
  </main>;
