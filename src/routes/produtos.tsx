@@ -50,10 +50,14 @@ function ProductsPDV(){
  try{
   const price=Number(form.sale_price.replace(",","."));
   if(!form.name.trim()||!Number.isFinite(price)||price<0)throw Error("Informe nome e preço válido.");
+  const normalizedName=form.name.trim().toLocaleLowerCase("pt-BR");
+  const normalizedCode=form.code.trim().toLocaleLowerCase("pt-BR");
+  if(products.some(p=>p.id!==edit&&p.name.trim().toLocaleLowerCase("pt-BR")===normalizedName))throw Error("Já existe um produto com este nome. Selecione-o na tabela para editar.");
+  if(normalizedCode&&products.some(p=>p.id!==edit&&(p.code||"").trim().toLocaleLowerCase("pt-BR")===normalizedCode))throw Error("Este código já está cadastrado em outro produto.");
   const payload={organization_id:org,code:form.code.trim()||null,name:form.name.trim(),sale_price:price,category_id:form.category_id||null,active:form.active};
   const result=edit?await supabase.from("products").update(payload).eq("id",edit).eq("organization_id",org):await supabase.from("products").insert(payload);
   if(result.error)throw result.error;
-  setNotice(edit?"Produto atualizado.":"Produto cadastrado.");setEdit(null);setSelectedProductId(null);setForm(blank);await load(org);
+  setNotice(edit?"Produto atualizado com sucesso.":"Produto cadastrado com sucesso.");setEdit(null);setSelectedProductId(null);setForm(blank);await load(org);
  }catch(e){setError(e instanceof Error?e.message:"Erro ao salvar produto.");}finally{setBusy(false);}};
  const addCategory=async(e:React.FormEvent)=>{e.preventDefault();if(!org||busy||!categoryName.trim())return;setBusy(true);setError("");
  try{const name=categoryName.trim().slice(0,100);const result=selectedCategoryId?await supabase.from("product_categories").update({name}).eq("id",selectedCategoryId).eq("organization_id",org):await supabase.from("product_categories").insert({organization_id:org,name});if(result.error)throw result.error;setCategoryName("");setSelectedCategoryId(null);setNotice(selectedCategoryId?"Categoria atualizada.":"Categoria cadastrada.");await load(org);}
