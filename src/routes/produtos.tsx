@@ -69,6 +69,16 @@ function ProductsPDV(){
  const labels:Record<string,string>={products:"Produtos",categories:"Categorias",complementos:"Complementos",observacoes:"Observações",tipos:"Tipos e Tamanhos",perguntas:"Perguntas",insumos:"Insumos",lote:"Alterar em Lote",nfe:"Alterar com NFe"};
  return <main className="flex min-h-screen flex-col bg-[#f0f0f0] font-[Segoe_UI,Tahoma,Arial,sans-serif] text-[#303030]">
   <AppTopTabs active="produtos" />
+   <div className="flex h-[104px] gap-0 overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-[#333] shadow-inner">
+    {groups.map(group=><section key={group} className="flex shrink-0 flex-col justify-between border-r border-[#c9c9c9] px-2.5 pb-1 pt-1.5">
+     <div className="flex flex-1 items-center">
+      {commands.filter(cmd=>cmd.group===group).map(cmd=><button key={cmd.id} type="button" onClick={()=>openPanel(cmd.id)} aria-pressed={view===cmd.id} className={"flex h-[68px] w-[76px] flex-col items-center justify-center gap-1 rounded-sm px-1 transition-colors hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 "+(view===cmd.id?"bg-white/70":"")}>
+       <span aria-hidden="true" className="text-[28px] leading-none">{cmd.icon}</span><span className="text-center text-[11px] leading-tight">{cmd.name}</span>
+      </button>)}
+     </div>
+     <span className="text-center text-[10px] text-[#858585]">{group}</span>
+    </section>)}
+   </div>
   <div className="relative min-h-[calc(100vh-140px)] flex-1 overflow-hidden bg-[#ededed]">
    <iframe title="Mesas do restaurante ao fundo" src="/?embedded=1" tabIndex={-1} onLoad={event=>{const doc=event.currentTarget.contentDocument;if(!doc)return;const nav=doc.querySelector("nav");const toolbar=nav?.nextElementSibling;for(const element of [doc.querySelector("header"),nav,toolbar,doc.querySelector("footer")]){if(element instanceof event.currentTarget.contentWindow!.HTMLElement)element.style.setProperty("display","none","important");}}} className="absolute inset-0 h-full w-full border-0" />
    {stack.length>0&&<div className="absolute inset-0 bg-[#14202e]/50" aria-hidden="true"/>}
