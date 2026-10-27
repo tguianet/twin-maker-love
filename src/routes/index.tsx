@@ -198,6 +198,14 @@ function Index() {
     } catch(e) { setLiveNotice(e instanceof Error?e.message:"Falha ao salvar o nome."); }
     finally { setLiveCustomerSaving(false); }
   };
+  // Persist customer changes automatically after typing stops; skip new/blocked orders.
+  useEffect(() => {
+    if (!liveOrder || !selectedLiveTable || liveLoadFailed || liveCustomerSaving || liveBusy) return;
+    if (liveCustomerName.trim().slice(0,120) === liveCustomerSaved) return;
+    const timeout = window.setTimeout(() => { void saveLiveCustomer(); }, 650);
+    return () => window.clearTimeout(timeout);
+  }, [liveCustomerName, liveCustomerSaved, liveCustomerSaving, liveBusy, liveOrder, selectedLiveTable, liveLoadFailed]);
+
   const saveLiveOrder = async () => {
     if (!selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed) return;
     setLiveBusy(true); setLiveNotice("");
@@ -386,9 +394,9 @@ function Index() {
           <div className="flex min-h-0 flex-1">
             <aside className="flex w-[221px] shrink-0 flex-col gap-3 border-r border-[#d6d6d6] bg-[#ededed] p-3">
               <label className="font-semibold">Nome do cliente
-                <input aria-label="Nome do cliente da mesa" maxLength={120} value={liveCustomerName} onChange={e=>setLiveCustomerName(e.target.value)} onBlur={()=>void saveLiveCustomer()} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}} placeholder="Digite o nome" className="mt-1 w-full border border-[#b7c2cc] bg-white px-2 py-2 font-normal"/>
+                <input aria-label="Nome do cliente da mesa" maxLength={120} value={liveCustomerName} onChange={e=>setLiveCustomerName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}} placeholder="Digite o nome" className="mt-1 w-full border border-[#b7c2cc] bg-white px-2 py-2 font-normal"/>
               </label>
-              <span role="status" className="text-[11px] text-gray-500">{liveCustomerSaving?"Salvando nome...":liveOrder?"Nome salvo ao sair do campo":"Nome salvo ao abrir a comanda"}</span>
+              <span role="status" className="text-[11px] text-gray-500">{liveCustomerSaving?"Salvando nome...":liveOrder?(liveCustomerName.trim()===liveCustomerSaved?"Nome salvo automaticamente":"Salvamento automático ativo"):"Nome salvo ao abrir a comanda"}</span>
               <strong>Informações do Pedido</strong>
               <span>{liveOrder?"Comanda #"+liveOrder.order_number:"Mesa sem comanda aberta"}</span>
               <div className="mt-auto text-[#1b78b0]">TGuia Food · Atendimento</div>
