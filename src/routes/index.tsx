@@ -214,8 +214,15 @@ function Index() {
       if (!liveOrder) {
         const {data:auth} = await supabase.auth.getUser();
         if (!auth.user) throw Error("Faça login na Gestão.");
-        const {error} = await supabase.from("orders").insert({organization_id:liveOrg,table_id:selectedLiveTable.id,order_type:"table",status:"open",customer_name:liveCustomerName.trim().slice(0,120)||null,created_by:auth.user.id});
+        const {data:created,error} = await supabase.from("orders").insert({organization_id:liveOrg,table_id:selectedLiveTable.id,order_type:"table",status:"open",customer_name:liveCustomerName.trim().slice(0,120)||null,created_by:auth.user.id}).select("id").single();
         if (error) throw error;
+        if (!created) throw Error("Não foi possível abrir a comanda.");
+        if (liveSelectedProduct) {
+          const {error:itemError} = await supabase.rpc("add_order_product",{p_order_id:created.id,p_product_id:liveSelectedProduct,p_quantity:liveQty});
+          if (itemError) throw Error("Comanda aberta, mas o produto não foi registrado: "+itemError.message);
+          const productName = liveProducts.find(p=>p.id===liveSelectedProduct)?.name || "Produto";
+          successMessage = `Mesa aberta: ${liveQty}× ${productName} adicionado com sucesso.`;
+        }
       } else {
         if (liveOrder.status !== "open" || !liveSelectedProduct) throw Error("Selecione um produto para uma comanda aberta.");
         const {error} = await supabase.rpc("add_order_product",{p_order_id:liveOrder.id,p_product_id:liveSelectedProduct,p_quantity:liveQty});
@@ -326,7 +333,7 @@ function Index() {
             <div className="mb-5 flex flex-wrap gap-3">
               {liveTables.filter(t => liveOrders.some(o => o.table_id === t.id)).filter(t => !tableQuery.trim() || String(t.number).includes(tableQuery.trim())).map(t => {
                 const order = liveOrders.find(o => o.table_id === t.id);
-                return <button type="button" key={t.id} onClick={() => void openLiveTable(t)} className="table-box-active flex h-24 w-24 flex-col items-center justify-center text-white" style={{backgroundColor:order?.status === "closing" ? "#e5ad1d" : "#32965d"}}><span className="text-2xl font-bold">{t.number}</span><span className="text-xs">{order?.status === "closing" ? "No caixa" : "Ocupada"}</span></button>;
+                return <button type="button" key={t.id} onClick={() => void openLiveTable(t)} className="table-box-active flex h-24 w-24 flex-col items-center justify-center text-white" style={{backgroundColor:order?.status === "closing" ? "#e5ad1d" : "#32965d"}}><span className="text-2xl font-bold">{t.number}</span><span className="text-xs">{order?.status === "closing" ? "No caixa" : "Ocupada"}</span>{order?.customer_name&&<span title={order.customer_name} className="w-[90px] truncate px-1 text-[11px] font-semibold">{order.customer_name}</span>}</button>;
               })}
             </div>
             <h2 className="mb-4 text-sm font-bold">Mesas livres</h2>
@@ -396,7 +403,7 @@ function Index() {
               <label className="font-semibold">Nome do cliente
                 <input aria-label="Nome do cliente da mesa" maxLength={120} value={liveCustomerName} onChange={e=>setLiveCustomerName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")e.currentTarget.blur();}} placeholder="Digite o nome" className="mt-1 w-full border border-[#b7c2cc] bg-white px-2 py-2 font-normal"/>
               </label>
-              <span role="status" className="text-[11px] text-gray-500">{liveCustomerSaving?"Salvando nome...":liveOrder?(liveCustomerName.trim()===liveCustomerSaved?"Nome salvo automaticamente":"Salvamento automático ativo"):"Nome salvo ao abrir a comanda"}</span>
+              <span role="status" className="text-[11px] text-gray-500">{liveCustomerSaving?"Salvando nome...":liveOrder?(liveCustomerName.trim()===liveCustomerSaved?"Nome salvo automaticamente":"Salvamento automático ativo"):"Digite o nome e clique em Abrir comanda"}</span>
               <strong>Informações do Pedido</strong>
               <span>{liveOrder?"Comanda #"+liveOrder.order_number:"Mesa sem comanda aberta"}</span>
               <div className="mt-auto text-[#1b78b0]">TGuia Food · Atendimento</div>
@@ -412,7 +419,7 @@ function Index() {
                 <div className="flex justify-between border-b px-4 py-2"><span>(+) SERVIÇO ({liveRate}%):</span><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(liveItems.reduce((n,i)=>n+i.quantity*i.unit_price,0)*liveRate/100)}</span></div>
                 <div className="flex justify-between px-4 py-2"><span>TOTAL:</span><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(liveItems.reduce((n,i)=>n+i.quantity*i.unit_price,0)*(1+liveRate/100))}</span></div>
               </div>
-              {liveOrder?.status==="open"&&<div className="flex shrink-0 gap-2 border-t p-2"><select aria-label="Produto" className="min-w-0 flex-1 border px-2 py-2" value={liveSelectedProduct} onChange={e=>setLiveSelectedProduct(e.target.value)}><option value="">Selecionar produto</option>{liveProducts.map(p=><option key={p.id} value={p.id}>{p.name} · {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(p.sale_price))}</option>)}</select><input aria-label="Quantidade" type="number" min={1} max={100} className="w-14 border p-2" value={liveQty} onChange={e=>setLiveQty(Number(e.target.value))}/></div>}
+              {(!liveOrder||liveOrder.status==="open")&&<div className="flex shrink-0 gap-2 border-t p-2"><select aria-label="Produto" className="min-w-0 flex-1 border px-2 py-2" value={liveSelectedProduct} onChange={e=>setLiveSelectedProduct(e.target.value)}><option value="">Selecionar produto</option>{liveProducts.map(p=><option key={p.id} value={p.id}>{p.name} · {new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(p.sale_price))}</option>)}</select><input aria-label="Quantidade" type="number" min={1} max={100} className="w-14 border p-2" value={liveQty} onChange={e=>setLiveQty(Number(e.target.value))}/></div>}
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[#ccc] bg-[#f7f7f7] p-2">
@@ -420,7 +427,7 @@ function Index() {
             <div className="flex flex-wrap gap-2">
               {liveOrder?.status==="open"&&<button type="button" onClick={()=>void sendLiveOrderToCashier()} disabled={liveBusy||liveLoadFailed||liveItems.length===0} className="border border-[#aaa] bg-white px-3 py-2 disabled:opacity-40">Encaminhar ao caixa</button>}
               {liveOrder&&<a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border border-[#aaa] bg-white px-3 py-2">Pagamento (F5)</a>}
-              {(!liveOrder||liveOrder.status==="open")&&<button disabled={liveBusy||liveLoadFailed||(!!liveOrder&&(!liveSelectedProduct||!Number.isInteger(liveQty)||liveQty<1||liveQty>100))} onClick={()=>void saveLiveOrder()} className="bg-[#444] px-4 py-2 font-bold text-white disabled:opacity-40">{liveBusy?"Salvando...":liveOrder?"Adicionar produto":"Abrir comanda"}</button>}
+              {(!liveOrder||liveOrder.status==="open")&&<button disabled={liveBusy||liveLoadFailed||(!Number.isInteger(liveQty)||liveQty<1||liveQty>100)||(!!liveOrder&&!liveSelectedProduct)} onClick={()=>void saveLiveOrder()} className="bg-[#444] px-4 py-2 font-bold text-white disabled:opacity-40">{liveBusy?"Salvando...":liveOrder?"Adicionar produto":liveSelectedProduct?"Abrir mesa e adicionar produto":"Abrir comanda"}</button>}
             </div>
           </div>
         </section>
