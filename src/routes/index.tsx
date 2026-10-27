@@ -389,7 +389,7 @@ function Index() {
 
   return (
     <div className={"relative mx-auto flex select-none flex-col bg-background text-app-text "+(embedded?"h-screen w-full":"h-[1080px] w-[1920px]")}>
-      <header className={(embedded?"hidden ":"")+"flex h-8 items-center justify-between border-b border-app-border bg-app-chrome px-2 text-xs">
+      <header className={(embedded?"hidden ":"")+"flex h-8 items-center justify-between border-b border-app-border bg-app-chrome px-2 text-xs"}>
         <div className="flex space-x-1">
           <button className="translate-y-[1px] border-b-background border-l border-r border-t border-app-border bg-background px-3 py-1 font-semibold text-app-blue">PRINCIPAL</button>
           <a href="/produtos" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">PRODUTOS</a>
@@ -407,7 +407,7 @@ function Index() {
         </div>
       </header>
 
-      <nav className={(embedded?"hidden ":"")+"flex h-[88px] items-stretch border-b border-app-border bg-app-ribbon text-center text-xs">
+      <nav className={(embedded?"hidden ":"")+"flex h-[88px] items-stretch border-b border-app-border bg-app-ribbon text-center text-xs"}>
         <div className="relative flex min-w-[130px] items-stretch border-r border-app-border px-1 pb-1 pt-1">
           <div className="flex w-full justify-center space-x-1">
             <RibbonButton onClick={() => setCashOpen(true)} width="w-20" svg={icon("M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", "text-app-icon-blue")}>Abrir / Fechar<br />Meu Caixa</RibbonButton>
@@ -427,7 +427,7 @@ function Index() {
         </div>
       </nav>
 
-      <div className={(embedded?"hidden ":"")+"flex h-12 shrink-0 items-center justify-between border-b border-app-border bg-background px-4 shadow-sm">
+      <div className={(embedded?"hidden ":"")+"flex h-12 shrink-0 items-center justify-between border-b border-app-border bg-background px-4 shadow-sm"}>
         <div className="flex items-center space-x-4">
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2">
@@ -586,7 +586,7 @@ function Index() {
       {livePaymentOpen && selectedLiveTable && liveOrder && <PaymentModal key={liveOrder.id} table={String(selectedLiveTable.number).padStart(2, "0")} orderNumber={liveOrder.order_number} subtotal={liveItems.reduce((n, i) => n + i.quantity * i.unit_price, 0)} service={Math.round(liveItems.reduce((n, i) => n + i.quantity * i.unit_price, 0) * liveRate) / 100} cashOpen={liveCashAvailable} busy={liveBusy} error={livePaymentError} onClose={() => setLivePaymentOpen(false)} onConfirm={method => void confirmLivePayment(method)} />}
       {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
       {cashHistoryOpen && <CashHistoryModal onClose={() => setCashHistoryOpen(false)}/> }
-      <footer className={(embedded?"hidden ":"")+"relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
+      <footer className={(embedded?"hidden ":"")+"relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs"}>
         <div className="flex items-center space-x-2"><div className="h-4 w-8 border border-app-border bg-app-field" /><span className="text-app-text">Exibir Total da Conta e Duração</span></div>
         <div className="absolute bottom-0 left-0 flex h-5 w-full items-center bg-app-status px-2 text-[11px]"><span className="text-app-text">{liveTables === null ? "Modo demonstração local — sem usuário de caixa autorizado" : "Mesas online: dados do restaurante autenticado"} <a className="text-app-blue underline" href="/gestao">Gestão / acesso</a></span></div>
       </footer>
