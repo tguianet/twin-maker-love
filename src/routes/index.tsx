@@ -390,7 +390,8 @@ function Index() {
       <header className="flex h-8 items-center justify-between border-b border-app-border bg-app-chrome px-2 text-xs">
         <div className="flex space-x-1">
           <button className="translate-y-[1px] border-b-background border-l border-r border-t border-app-border bg-background px-3 py-1 font-semibold text-app-blue">PRINCIPAL</button>
-          {["PRODUTOS", "FINANCEIRO", "CONFIGURAÇÕES", "APPS"].map((t) => (
+          <a href="/gestao" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">PRODUTOS</a>
+          {["FINANCEIRO", "CONFIGURAÇÕES", "APPS"].map((t) => (
             <button key={t} className="px-3 py-1 text-app-muted hover:bg-app-chrome-hover">{t}</button>
           ))}
           <a href="/gestao" className="px-3 py-1 font-semibold text-app-blue hover:bg-app-chrome-hover">GESTÃO / GELADEIRA</a>
