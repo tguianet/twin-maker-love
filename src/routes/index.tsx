@@ -1,6 +1,6 @@
 import { AppTopTabs } from "../components/AppTopTabs";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CashRegisterModal } from "../components/CashRegisterModal";
 import { CashHistoryModal } from "../components/CashHistoryModal";
