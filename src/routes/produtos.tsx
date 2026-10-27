@@ -24,7 +24,7 @@ function ProductsPDV(){
  const [categoryName,setCategoryName]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
  const [authenticated,setAuthenticated]=useState(false);
  const [stack,setStack]=useState<string[]>([]);
- useEffect(()=>{const handler=(event:KeyboardEvent)=>{if(event.key!=="Escape"||!stack.length)return;event.preventDefault();const next=stack.slice(0,-1);setStack(next);setView((next[next.length-1]||null) as typeof view);};window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[stack]);
+ useEffect(()=>{const handler=(event:KeyboardEvent)=>{if(event.key!=="Escape"||!stack.length)return;const active=event.target;if(active instanceof HTMLElement&&(active.matches("input,textarea,select,[contenteditable=true]")||active.closest("[role=dialog]")))return;event.preventDefault();const next=stack.slice(0,-1);setStack(next);setView((next[next.length-1]||null) as typeof view);};window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[stack]);
  const [maximized,setMaximized]=useState<string[]>([]);
  const [minimized,setMinimized]=useState<string[]>([]);
  const openPanel=(id:string)=>{setView(id as typeof view);setStack(previous=>[...previous.filter(x=>x!==id),id]);setMinimized(previous=>previous.filter(x=>x!==id));setError("");setNotice("");};
@@ -80,7 +80,7 @@ function ProductsPDV(){
     </section>)}
    </div>
   <div className="relative min-h-[calc(100vh-140px)] flex-1 overflow-hidden bg-[#ededed]">
-   <iframe title="Mesas do restaurante ao fundo" src="/?embedded=1" tabIndex={-1} onLoad={event=>{const doc=event.currentTarget.contentDocument;if(!doc)return;const nav=doc.querySelector("nav");const toolbar=nav?.nextElementSibling;for(const element of [doc.querySelector("header"),nav,toolbar,doc.querySelector("footer")]){if(element instanceof event.currentTarget.contentWindow!.HTMLElement)element.style.setProperty("display","none","important");}}} className="absolute inset-0 h-full w-full border-0" />
+   <iframe title="Mesas do restaurante ao fundo" src="/?embedded=1" tabIndex={-1} className="absolute inset-0 h-full w-full border-0" />
    {stack.length>0&&<div className="absolute inset-0 bg-[#14202e]/50" aria-hidden="true"/>}
    <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
    {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:maximized.includes(panel)?"8px":`${Math.min(26+i*28,120)}px`,left:maximized.includes(panel)?"1%":`calc(50% - min(530px, 46vw) + ${Math.min(i*12,48)}px)`,zIndex:20+i,width:maximized.includes(panel)?"98%":"min(1060px,92vw)",height:minimized.includes(panel)?"34px":maximized.includes(panel)?"calc(100vh - 165px)":"min(690px,calc(100vh - 190px))"}} className={"pointer-events-auto flex flex-col overflow-hidden border bg-[#f7f7f7] text-[12px] shadow-[0_16px_45px_rgba(0,0,0,0.4)] "+(i===stack.length-1?"border-[#4c8bbb] ring-1 ring-[#4c8bbb]":"border-[#777]")}>
