@@ -332,7 +332,7 @@ function Index() {
       <main className="app-scrollbar-hide flex flex-1 flex-col overflow-y-auto bg-background p-6">
         {liveLoading && <p className="mb-3 text-sm">Verificando mesas online...</p>}
         {!liveLoading && liveTables !== null ?
-          <div>
+          <div data-tguia-live-tables="true">
             {liveError && <p role="alert" className="mb-4 border border-amber-300 bg-amber-50 p-3 text-sm">{liveError}</p>}
             <h1 className="mb-4 text-sm font-bold">Mesas do restaurante · Supabase</h1>
             <div className="mb-5 flex flex-wrap gap-3">
