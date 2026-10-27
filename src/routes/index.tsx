@@ -417,7 +417,7 @@ function Index() {
         </div>
       </nav>
 
-      <div className={(embedded?"hidden ":"")+"flex h-12 shrink-0 items-center justify-between border-b border-[#c9c9c9] bg-white px-4"}>
+      <div className={(embedded?"hidden ":"")+"flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#c9c9c9] bg-white px-4 py-2"}>
         <div className="flex items-center space-x-4">
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2">
@@ -433,6 +433,7 @@ function Index() {
         </div>
       </div>
 
+      <div className={(embedded?"hidden ":"")+"flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-[#ddd] bg-[#f4f4f4] px-4 py-1.5 text-[11px] text-[#27639a]"}><a href="/gestao" className="hover:underline">GESTÃO / GELADEIRA</a><a href="/historico" className="hover:underline">HISTÓRICO LOCAL</a><a href="/comandas-online" className="hover:underline">COMANDAS ONLINE</a></div>
       <main className="app-scrollbar-hide flex flex-1 flex-col overflow-y-auto bg-background p-6">
         {liveLoading && <p className="mb-3 text-sm">Verificando mesas online...</p>}
         {!liveLoading && liveTables !== null ?
