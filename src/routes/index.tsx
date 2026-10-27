@@ -91,6 +91,8 @@ function Index() {
   const [liveOrg, setLiveOrg] = useState("");
   const [supabase,setSupabase] = useState<SupabaseClient|null>(null);
   const [selectedLiveTable, setSelectedLiveTable] = useState<{id:string;number:number}|null>(null);
+  const [tableOpeningChoice,setTableOpeningChoice] = useState(false);
+  const [registeredInfoOpen,setRegisteredInfoOpen] = useState(false);
   const [liveBusy, setLiveBusy] = useState(false);
   const [liveCustomerName,setLiveCustomerName] = useState("");
   const [liveCustomerSaved,setLiveCustomerSaved] = useState("");
@@ -143,7 +145,7 @@ function Index() {
       const paidTableId = selectedLiveTable.id;
       setLiveOrders(previous => previous.filter(order => order.table_id !== paidTableId));
       setLivePaymentOpen(false);
-      setSelectedLiveTable(null);
+      setSelectedLiveTable(null); setTableOpeningChoice(false); setRegisteredInfoOpen(false);
       setLiveOrder(null);
       setLiveItems([]);
       // Reconcile with the database; never undo a successful payment if refresh fails.
@@ -209,7 +211,7 @@ function Index() {
 
   const openLiveTable = async (table:{id:string;number:number}) => {
     if (!liveOrg || !supabase) return;
-    setSelectedLiveTable(table); setLiveProductPickerOpen(false); setLiveBusy(true); setLiveNotice(""); setLiveLoadFailed(false);
+    setSelectedLiveTable(table); setTableOpeningChoice(false); setRegisteredInfoOpen(false); setLiveProductPickerOpen(false); setLiveBusy(true); setLiveNotice(""); setLiveLoadFailed(false);
     setLiveOrder(null); setLiveItems([]); setLiveCustomerName(""); setLiveCustomerSaved("");
     try {
       const [orderResult,productResult,orgResult,categoriesResult] = await Promise.all([
@@ -220,6 +222,7 @@ function Index() {
       ]);
       if (orderResult.error || productResult.error || orgResult.error || categoriesResult.error) throw orderResult.error || productResult.error || orgResult.error || categoriesResult.error;
       setLiveOrder(orderResult.data ? {id:orderResult.data.id,status:orderResult.data.status,order_number:orderResult.data.order_number} : null);
+      setTableOpeningChoice(!orderResult.data);
       setLiveItems(orderResult.data?.order_items || []);
       setLiveCustomerName(orderResult.data?.customer_name || "");
       setLiveCustomerSaved(orderResult.data?.customer_name || "");
@@ -303,7 +306,8 @@ function Index() {
         if (insertError) throw insertError;
       }
       await openLiveTable(table);
-      setLiveNotice(existing ? "Comanda já estava aberta." : "Comanda aberta. A mesa continuará ocupada ao sair da janela.");
+      setTableOpeningChoice(false);
+      setLiveNotice(existing ? "Comanda já estava aberta." : "Comanda de passagem aberta. A mesa continuará ocupada ao sair da janela.");
       setLiveNoticeSequence(n => n + 1);
     } catch (error) {
       setLiveNotice(error instanceof Error ? error.message : "Não foi possível abrir a comanda.");
@@ -499,7 +503,17 @@ function Index() {
       </main>
 
       {selectedLiveTable && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#1f2c3b]/95 px-4 py-6">
-        <section role="dialog" aria-modal="true" aria-label={"Mesa/Comanda "+selectedLiveTable.number} className="flex h-[633px] max-h-[92vh] w-[741px] max-w-[96vw] flex-col overflow-hidden border border-[#999] bg-white font-[Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] text-[12px] text-[#273142] shadow-2xl">
+        <section role="dialog" aria-modal="true" aria-label={"Mesa/Comanda "+selectedLiveTable.number} className="relative flex h-[633px] max-h-[92vh] w-[741px] max-w-[96vw] flex-col overflow-hidden border border-[#999] bg-white font-[Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] text-[12px] text-[#273142] shadow-2xl">
+          {tableOpeningChoice && !liveOrder && !liveBusy && !liveLoadFailed && <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#1f2c3b]/85 p-3">
+            <div role="dialog" aria-modal="true" aria-label="Como abrir mesa" className="w-full max-w-[420px] border border-[#777] bg-white p-5 text-[#253442] shadow-2xl">
+              <div className="mb-3 flex items-center justify-between"><strong className="text-lg">Mesa {selectedLiveTable.number} — Livre</strong><button type="button" aria-label="Voltar" className="px-2 text-lg" onClick={()=>void closeLiveTable()}>×</button></div>
+              <p className="mb-4 text-sm">Como deseja abrir esta mesa?</p>
+              <button type="button" onClick={()=>setRegisteredInfoOpen(v=>!v)} className="mb-2 w-full border border-[#aaa] bg-[#eaf2fc] px-4 py-3 text-left font-semibold">Cliente cadastrado</button>
+              {registeredInfoOpen && <p role="status" className="mb-3 border-l-4 border-amber-500 bg-amber-50 p-3 text-xs">A identificação segura por senha do cliente ainda depende do cadastro central de clientes. Nenhuma senha será solicitada ou validada pelo aparelho do garçom até essa integração estar pronta. Para clientes de passagem, use a opção abaixo.</p>}
+              <button type="button" disabled={liveBusy} onClick={()=>{setLiveCustomerName("");void createLiveEmptyOrder();}} className="w-full bg-[#32935f] px-4 py-3 text-left font-bold text-white disabled:opacity-50">Abrir sem cadastro ou senha</button>
+              <p className="mt-3 text-xs text-gray-500">Abre uma comanda real, vinculada apenas a esta mesa. O pagamento será feito normalmente no caixa.</p>
+            </div>
+          </div>}
           <div className="flex h-[30px] shrink-0 items-center justify-between border-b border-[#a0a0a0] bg-gradient-to-b from-[#e6e6e6] to-[#d4d4d4] px-2">
             <strong>Mesa/Comanda: {selectedLiveTable.number} {liveOrder?"(#"+liveOrder.order_number+")":""}</strong>
             <button onClick={() => void closeLiveTable()} aria-label="Fechar comanda" className="h-6 w-7 border border-[#aaa] bg-[#e1e1e1] hover:bg-red-200">×</button>
@@ -536,7 +550,7 @@ function Index() {
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[#ccc] bg-[#f7f7f7] p-2">
             <button onClick={() => void closeLiveTable()} className="px-3 py-2 font-semibold text-[#1a79bb]">‹ Voltar (ESC)</button>
             <div className="flex flex-wrap gap-2">
-              {!liveOrder&&<button type="button" disabled={liveBusy||liveLoadFailed} onClick={()=>void createLiveEmptyOrder()} className="bg-[#32935f] px-4 py-2 font-bold text-white disabled:opacity-40">{liveBusy?"Abrindo...":"Abrir comanda"}</button>}
+              {!liveOrder&&<button type="button" disabled={liveBusy||liveLoadFailed} onClick={()=>setTableOpeningChoice(true)} className="bg-[#32935f] px-4 py-2 font-bold text-white disabled:opacity-40">Abrir comanda</button>}
               {liveOrder?.status==="open"&&<button type="button" onClick={()=>void sendLiveOrderToCashier()} disabled={liveBusy||liveLoadFailed||liveItems.length===0} className="border border-[#aaa] bg-white px-3 py-2 disabled:opacity-40">Encaminhar ao caixa</button>}
               {liveOrder&&<Button variant="pdv" size="sm" disabled={liveBusy || liveLoadFailed || liveItems.length === 0} onClick={() => void openLivePayment()}>Pagamento (F5)</Button>}
             </div>
