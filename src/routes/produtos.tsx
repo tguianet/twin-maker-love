@@ -16,7 +16,9 @@ function ProductsPDV(){
  const [categoryName,setCategoryName]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
  const [authenticated,setAuthenticated]=useState(false);
  const [stack,setStack]=useState<string[]>([]);
- const openPanel=(id:string)=>{setView(id as typeof view);setStack(previous=>[...previous.filter(x=>x!==id),id]);setError("");setNotice("");};
+ const [maximized,setMaximized]=useState<string[]>([]);
+ const [minimized,setMinimized]=useState<string[]>([]);
+ const openPanel=(id:string)=>{setView(id as typeof view);setStack(previous=>[...previous.filter(x=>x!==id),id]);setMinimized(previous=>previous.filter(x=>x!==id));setError("");setNotice("");};
  const closePanel=()=>{setStack(previous=>{const next=previous.slice(0,-1);setView((next[next.length-1]||null) as typeof view);return next;});};
  const load=async(id:string)=>{
   const [p,c]=await Promise.all([
@@ -75,9 +77,9 @@ function ProductsPDV(){
    <iframe title="Mesas do restaurante ao fundo" src="/" tabIndex={-1} className="absolute inset-0 h-full w-full border-0" />
    {stack.length>0&&<div className="absolute inset-0 bg-[#14202e]/50" aria-hidden="true"/>}
    <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
-   {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:`${Math.min(26+i*28,120)}px`,left:`calc(50% - min(530px, 46vw) + ${Math.min(i*12,48)}px)`,zIndex:20+i,width:"min(1060px,92vw)",height:"min(690px,calc(100vh - 190px))"}} className="pointer-events-auto flex flex-col overflow-hidden border border-[#777] bg-[#f7f7f7] text-[12px] shadow-[0_16px_45px_rgba(0,0,0,0.4)]">
-    <div onClick={()=>{setStack(current=>[...current.filter(x=>x!==panel),panel]);setView(panel as typeof view);}} className="flex h-8 shrink-0 cursor-default items-center justify-between border-b border-[#292929] bg-[#3e3e3e] px-3 text-xs font-semibold text-white"><span>{labels[panel]} — TGuia Food</span><button type="button" onClick={()=>{setStack(current=>current.filter(x=>x!==panel));if(view===panel)setView((stack.filter(x=>x!==panel).at(-1)||null) as typeof view);}} aria-label="Fechar janela" className="flex h-8 w-10 items-center justify-center text-lg hover:bg-[#e81123]">×</button></div>
-   {error&&<p role="alert" className="border-b bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+   {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:maximized.includes(panel)?"8px":`${Math.min(26+i*28,120)}px`,left:maximized.includes(panel)?"1%":`calc(50% - min(530px, 46vw) + ${Math.min(i*12,48)}px)`,zIndex:20+i,width:maximized.includes(panel)?"98%":"min(1060px,92vw)",height:minimized.includes(panel)?"34px":maximized.includes(panel)?"calc(100vh - 165px)":"min(690px,calc(100vh - 190px))"}} className="pointer-events-auto flex flex-col overflow-hidden border border-[#777] bg-[#f7f7f7] text-[12px] shadow-[0_16px_45px_rgba(0,0,0,0.4)]">
+    <div onClick={()=>{setStack(current=>[...current.filter(x=>x!==panel),panel]);setView(panel as typeof view);}} className="flex h-8 shrink-0 cursor-default items-center justify-between border-b border-[#292929] bg-[#3e3e3e] px-3 text-xs font-semibold text-white"><span>{labels[panel]} — TGuia Food</span><div className="flex items-center"><button type="button" aria-label={"Minimizar "+labels[panel]} onClick={event=>{event.stopPropagation();setMinimized(previous=>previous.includes(panel)?previous.filter(x=>x!==panel):[...previous,panel]);}} className="flex h-8 w-10 items-center justify-center hover:bg-[#555]">−</button><button type="button" aria-label={"Maximizar ou restaurar "+labels[panel]} onClick={event=>{event.stopPropagation();setMaximized(previous=>previous.includes(panel)?previous.filter(x=>x!==panel):[...previous,panel]);setMinimized(previous=>previous.filter(x=>x!==panel));}} className="flex h-8 w-10 items-center justify-center hover:bg-[#555]">□</button><button type="button" onClick={()=>{setStack(current=>current.filter(x=>x!==panel));if(view===panel)setView((stack.filter(x=>x!==panel).at(-1)||null) as typeof view);}} aria-label="Fechar janela" className="flex h-8 w-10 items-center justify-center text-lg hover:bg-[#e81123]">×</button></div></div>
+   {!minimized.includes(panel)&&<>{error&&<p role="alert" className="border-b bg-red-50 p-3 text-sm text-red-700">{error}</p>}
    {notice&&<p role="status" className="border-b bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
    {!authenticated?<div className="p-5"><p role="status" className="mb-2">Conecte seu usuário de restaurante para consultar dados reais.</p><a href="/gestao" className="text-blue-700 underline">Entrar na Gestão</a></div>:
    panel==="products"?<div className="grid min-h-0 flex-1 gap-3 overflow-auto bg-white p-3 lg:grid-cols-[295px_1fr]">
@@ -97,6 +99,7 @@ function ProductsPDV(){
       {!visible.length&&<p className="p-4 text-gray-500">Nenhum produto encontrado.</p>}</div>
     </section>
    </div>:panel==="categories"?<div className="min-h-0 flex-1 space-y-4 overflow-auto bg-white p-5"><h2 className="font-semibold">Categorias cadastradas</h2><form className="flex flex-wrap gap-2" onSubmit={addCategory}><input required value={categoryName} maxLength={100} onChange={e=>setCategoryName(e.target.value)} className={field+" max-w-sm"} placeholder="Nova categoria"/><button disabled={busy} className={button}>Adicionar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(x=><span key={x.id} className="border bg-[#eee] px-3 py-2">{x.name}</span>)}</div></div>:<div className="p-6"><h2 className="mb-2 text-base font-semibold">{labels[panel]}</h2><p className="text-sm">Esta função ainda não está integrada ao cadastro real. Nenhuma informação será gravada até a implementação do módulo.</p></div>}
+   </>}
    </section>)}
    </div>
   </div>
