@@ -267,6 +267,34 @@ function Index() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedLiveTable, liveOrder, liveProductPickerOpen, livePaymentOpen]);
 
+  const createLiveEmptyOrder = async () => {
+    if (!supabase || !liveOrg || !selectedLiveTable || liveBusy || liveLoadFailed || liveOrder) return;
+    const table = selectedLiveTable;
+    setLiveBusy(true);
+    setLiveNotice("");
+    try {
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw Error("Faça login na Gestão.");
+      const { data: existing, error: lookupError } = await supabase.from("orders")
+        .select("id,status").eq("organization_id", liveOrg).eq("table_id", table.id)
+        .in("status", ["open","closing"]).maybeSingle();
+      if (lookupError) throw lookupError;
+      if (existing?.status === "closing") throw Error("Mesa encaminhada ao caixa. Atualize os dados.");
+      if (!existing) {
+        const { error: insertError } = await supabase.from("orders").insert({
+          organization_id: liveOrg, table_id: table.id, order_type: "table",
+          status: "open", customer_name: liveCustomerName.trim().slice(0,120) || null,
+          created_by: auth.user.id,
+        });
+        if (insertError) throw insertError;
+      }
+      await openLiveTable(table);
+      setLiveNotice(existing ? "Comanda já estava aberta." : "Comanda aberta. A mesa continuará ocupada ao sair da janela.");
+      setLiveNoticeSequence(n => n + 1);
+    } catch (error) {
+      setLiveNotice(error instanceof Error ? error.message : "Não foi possível abrir a comanda.");
+    } finally { setLiveBusy(false); }
+  };
   const addLiveBatch = async () => {
     if (!supabase || !liveOrg || !selectedLiveTable || liveBusy || liveLoadFailed || liveOrder?.status === "closing") return;
     const entries = Object.entries(liveBatch).filter(([id,qty])=>liveProducts.some(p=>p.id===id)&&Number.isInteger(qty)&&qty>0&&qty<=100);
@@ -494,6 +522,7 @@ function Index() {
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[#ccc] bg-[#f7f7f7] p-2">
             <button onClick={() => void closeLiveTable()} className="px-3 py-2 font-semibold text-[#1a79bb]">‹ Voltar (ESC)</button>
             <div className="flex flex-wrap gap-2">
+              {!liveOrder&&<button type="button" disabled={liveBusy||liveLoadFailed} onClick={()=>void createLiveEmptyOrder()} className="bg-[#32935f] px-4 py-2 font-bold text-white disabled:opacity-40">{liveBusy?"Abrindo...":"Abrir comanda"}</button>}
               {liveOrder?.status==="open"&&<button type="button" onClick={()=>void sendLiveOrderToCashier()} disabled={liveBusy||liveLoadFailed||liveItems.length===0} className="border border-[#aaa] bg-white px-3 py-2 disabled:opacity-40">Encaminhar ao caixa</button>}
               {liveOrder&&<Button variant="pdv" size="sm" disabled={liveBusy || liveLoadFailed || liveItems.length === 0} onClick={() => void openLivePayment()}>Pagamento (F5)</Button>}
             </div>
