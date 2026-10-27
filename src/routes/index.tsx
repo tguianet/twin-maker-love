@@ -1,3 +1,4 @@
+import { AppTopTabs } from "../components/AppTopTabs";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -388,14 +389,7 @@ function Index() {
 
   return (
     <div className={"relative mx-auto flex min-h-screen w-full select-none flex-col bg-white text-[#303030] "+(embedded?"h-screen":"")}>
-      <header className={(embedded?"hidden ":"")+"shrink-0 bg-[#383838] text-white"}>
-        <div className="flex h-9 items-end gap-0 overflow-x-auto px-2 text-[11px]">
-          <span className="shrink-0 rounded-t-sm bg-[#e6e6e6] px-4 py-3 font-semibold text-[#333]">PRINCIPAL</span>
-          <a href="/produtos" className="shrink-0 px-3 py-3 hover:bg-[#505050]">PRODUTOS</a>
-          {["MARKETING","FINANCEIRO","RELATÓRIOS","APPS","CONFIGURAÇÕES"].map(label=><span key={label} className="shrink-0 px-3 py-3 text-[#d0d0d0]">{label}</span>)}
-          <span className="shrink-0 px-3 py-3 text-[#ccc]">⌕ Pesquisar</span>
-        </div>
-      </header>
+      <AppTopTabs active="principal" embedded={embedded} />
 
       <nav className={(embedded?"hidden ":"")+"flex h-[104px] shrink-0 items-stretch overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-center text-xs text-[#333]"}>
         <div className="relative flex min-w-[165px] shrink-0 items-stretch border-r border-[#c9c9c9] px-2.5 pb-2 pt-1.5">
