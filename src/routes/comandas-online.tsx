@@ -38,6 +38,8 @@ function SharedOrdersPage() {
   const [changingStatus, setChangingStatus] = useState<string | null>(null);
   const [settling, setSettling] = useState<string | null>(null);
   const [payMethod, setPayMethod] = useState<Record<string,string>>({});
+  const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
+  const [cashOpen, setCashOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -68,17 +70,20 @@ function SharedOrdersPage() {
     if (!client || !org) return;
     setLoading(true); setError("");
     try {
-      const [ordersResult, tablesResult, productsResult, organizationResult] = await Promise.all([
+      const [ordersResult, tablesResult, productsResult, organizationResult, cashResult] = await Promise.all([
         client.from("orders").select("id, order_number, status, customer_name, opened_at, table_id, order_items(id, product_name, quantity, unit_price)")
           .eq("organization_id", org).in("status", ["open", "closing"]).order("opened_at", { ascending: false }).limit(200),
         client.from("restaurant_tables").select("id, number").eq("organization_id", org),
         client.from("products").select("id, name, sale_price").eq("organization_id", org).eq("active", true).order("name").limit(500),
         client.from("organizations").select("service_rate").eq("id", org).single(),
+        client.from("cash_sessions").select("id").eq("organization_id",org).is("closed_at",null).limit(1),
       ]);
       if (ordersResult.error) throw ordersResult.error;
       if (tablesResult.error) throw tablesResult.error;
       if (productsResult.error) throw productsResult.error;
       if (organizationResult.error) throw organizationResult.error;
+      if (cashResult.error) throw cashResult.error;
+      setCashOpen(Boolean(cashResult.data?.length));
       setServiceRate(Number(organizationResult.data?.service_rate || 0));
       setOrders((ordersResult.data || []) as Order[]);
       const availableTables = Object.fromEntries((tablesResult.data || []).map(t => [t.id, t.number]));
@@ -169,6 +174,7 @@ function SharedOrdersPage() {
     try {
       const { error: failure } = await client.rpc("close_order_manual", { p_order_id: order.id, p_method: method });
       if (failure) throw failure;
+      setPaymentOrderId(null);
       setMessage("Comanda #" + order.order_number + " quitada manualmente e fechada.");
       await refresh();
     } catch (err) { setError(err instanceof Error ? err.message : "Falha ao registrar o pagamento."); }
@@ -255,7 +261,7 @@ function SharedOrdersPage() {
               className="border border-app-border bg-app-ribbon px-3 py-2 text-sm font-semibold disabled:opacity-50">
               {changingStatus === order.id ? "Atualizando..." : order.status === "open" ? "Encaminhar ao caixa" : "Reabrir comanda"}
             </button>
-            {order.status === "closing" && <div className="flex flex-wrap items-center gap-2"><select aria-label={"Forma de recebimento da comanda " + order.order_number} className="border p-2 text-sm" value={payMethod[order.id] || "cash"} onChange={e => setPayMethod(prev => ({ ...prev, [order.id]: e.target.value }))}><option value="cash">Dinheiro</option><option value="pix">Pix recebido</option><option value="debit">Débito recebido</option><option value="credit">Crédito recebido</option></select><button type="button" disabled={settling !== null || changingStatus !== null} onClick={() => void settleOrder(order)} className="bg-app-blue px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{settling === order.id ? "Fechando..." : "Confirmar recebimento e fechar"}</button></div>}
+            {order.status === "closing" && <button type="button" disabled={settling !== null || changingStatus !== null} onClick={() => setPaymentOrderId(order.id)} className="bg-app-blue px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">Pagamento (F5)</button>}
           </div>
           {order.status === "open" && <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
             <select aria-label={"Produto do pedido " + order.order_number} className="min-w-[220px] flex-1 border p-2 text-sm" value={selection[order.id] || ""} onChange={e => setSelection(prev => ({ ...prev, [order.id]: e.target.value }))}>
@@ -268,5 +274,31 @@ function SharedOrdersPage() {
         </section>;
       })}</div>
     </main>
+    {paymentOrderId && (() => {
+      const order = orders.find(o=>o.id===paymentOrderId && o.status==="closing");
+      if(!order)return null;
+      const subtotal=order.order_items.reduce((n,i)=>n+Number(i.quantity)*Number(i.unit_price),0);
+      const service=Math.round(subtotal*serviceRate)/100;
+      const total=Math.round((subtotal+service)*100)/100;
+      const method=payMethod[order.id]||"cash";
+      const options=[{id:"cash",key:"A",label:"Dinheiro"},{id:"pix",key:"P",label:"Pix"},{id:"credit",key:"C",label:"Crédito"},{id:"debit",key:"B",label:"Débito"}];
+      return <div className="fixed inset-0 z-[250] flex items-center justify-center bg-[#595959]/85 p-3">
+        <section role="dialog" aria-modal="true" aria-label={"Pagamento da comanda "+order.order_number} className="flex max-h-[95vh] w-[960px] max-w-[96vw] flex-col overflow-hidden rounded-t-sm border border-[#303335] bg-white font-[Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] text-[12px] shadow-2xl">
+          <header className="flex items-center justify-between bg-[#3a3d40] px-3 py-1.5 text-white"><h2 className="text-[13px] font-semibold">Pagamento - Comanda {order.table_id?String(tables[order.table_id]||"").padStart(2,"0"):"—"}, Pedido {order.order_number}</h2><button type="button" aria-label="Fechar pagamento" onClick={()=>setPaymentOrderId(null)} className="px-2 hover:bg-red-700">✕</button></header>
+          <div className="flex items-center justify-between border-b border-gray-200 bg-[#f8f9fa] px-4 py-2"><span className="text-gray-700">Conferir e rachar a conta <span className="ml-2 text-gray-400">(divisão de pagamentos ainda não habilitada)</span></span><span className={cashOpen?"font-semibold text-[#1e7e34]":"font-semibold text-red-700"}>{cashOpen?"ⓘ Caixa aberto":"Caixa fechado"}</span></div>
+          <div className="flex min-h-[380px] flex-1 overflow-auto">
+            <div className="flex w-9 shrink-0 items-center justify-center border-r border-gray-300 bg-[#f4f5f7] py-4"><span className="text-[11px] text-gray-600" style={{writingMode:"vertical-rl",transform:"rotate(180deg)"}}>Conferir Itens e rachar a conta</span></div>
+            <section className="flex w-48 shrink-0 flex-col border-r border-gray-300 bg-[#fdfdfd] p-2.5"><h3 className="mb-2 font-semibold">Adicionar Pagamento</h3><div className="flex flex-col gap-1.5">
+              {options.map(option=><button key={option.id} type="button" aria-pressed={method===option.id} onClick={()=>setPayMethod(prev=>({...prev,[order.id]:option.id}))} className={"flex items-center gap-2.5 rounded border px-2.5 py-2 text-left font-semibold shadow-sm "+(method===option.id?"border-[#1b62a6] bg-[#f0f6fc] text-[#1b62a6]":"border-gray-300 bg-white text-gray-800 hover:bg-gray-50")}><span className="flex h-6 w-6 items-center justify-center rounded border border-current">{option.key}</span>{option.key} - {option.label}</button>)}
+              {["V. Refeição","Fiado","Outros"].map(label=><button key={label} type="button" disabled title="Requer suporte financeiro específico no banco" className="flex items-center gap-2.5 rounded border border-gray-300 bg-gray-100 px-2.5 py-2 text-left text-gray-400"><span className="flex h-6 w-6 items-center justify-center">·</span>{label} (indisponível)</button>)}
+            </div></section>
+            <section className="flex min-w-0 flex-1 flex-col bg-white p-4"><div className="mb-auto overflow-hidden rounded-t-sm border border-[#72a4d2]"><h3 className="border-b border-dashed border-[#72a4d2] bg-[#f0f6fc] px-3 py-1.5 font-bold text-[#1b62a6]">▾ A Pagar / Resumo dos Totais</h3><div className="space-y-2 px-8 py-3">
+              <div className="flex justify-between"><span>Total dos itens</span><strong>{money(subtotal)}</strong></div><div className="flex justify-between border-t border-gray-100 pt-2"><span>(+) Serviço ({serviceRate}%)</span><strong>{money(service)}</strong></div><div className="flex justify-between border-t border-gray-100 pt-2"><span>Total a Pagar</span><strong>{money(total)}</strong></div>
+            </div></div><div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 px-2 pt-3"><div className="flex items-baseline gap-3">Total Pago <strong className="text-2xl text-[#1a66b2]">{money(0)}</strong></div><div className="flex items-baseline gap-3">Falta pagar <strong className="text-2xl">{money(total)}</strong></div></div><p className="mt-3 text-[11px] text-gray-500">Recebimento integral manual. Selecione a forma efetivamente recebida e confirme para registrar no Supabase.</p></section>
+          </div>
+          <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-300 bg-[#f4f5f7] px-4 py-2.5"><div className="flex gap-2"><button disabled title="Descontos ainda não suportados no fechamento financeiro" className="rounded border bg-gray-100 px-3 py-1.5 text-gray-400">Taxas e Descontos</button><button type="button" onClick={()=>window.print()} className="rounded border border-gray-300 bg-white px-3 py-1.5 shadow-sm">▤ Imprimir Cupom</button></div><div className="flex gap-2"><button type="button" onClick={()=>setPaymentOrderId(null)} className="rounded border border-gray-300 bg-white px-3.5 py-1.5">‹ Voltar</button><button type="button" disabled={!cashOpen||settling!==null||total<=0} onClick={()=>void settleOrder(order)} className="rounded bg-[#1b62a6] px-5 py-2 font-medium text-white disabled:opacity-50">{settling===order.id?"Registrando...":"Confirmar pagamento recebido"}</button></div></footer>
+        </section>
+      </div>;
+    })()}
   </div>;
 }
