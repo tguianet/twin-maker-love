@@ -50,7 +50,7 @@ const icon = (path: string, className: string) => (
 );
 
 function RibbonButton({ width, children, svg, href, onClick }: { width: string; children: React.ReactNode; svg: React.ReactNode; href?: string; onClick?:()=>void }) {
-  const className = `flex h-[68px] ${width} shrink-0 flex-col items-center justify-center gap-1 rounded-sm px-1 text-center text-[11px] text-[#333] transition-colors hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500`;
+  const className = `flex h-[68px] ${width} shrink-0 flex-col items-center justify-center gap-1 rounded-sm px-1 text-center text-[11px] leading-tight text-[#333] transition-colors hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500`;
   if (href) return <a href={href} className={className}>{svg}<span className="leading-tight">{children}</span></a>;
   return <button type="button" onClick={onClick} className={className}>{svg}<span className="leading-tight">{children}</span></button>;
 }
@@ -397,7 +397,7 @@ function Index() {
         </div>
       </header>
 
-      <nav className={(embedded?"hidden ":"")+"flex h-[104px] shrink-0 items-stretch overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-center text-xs text-[#333]"}>
+      <nav className={(embedded?"hidden ":"")+"flex h-[104px] shrink-0 items-stretch overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-center text-xs text-[#333] shadow-inner"}>
         <div className="relative flex min-w-[165px] shrink-0 items-stretch border-r border-[#c9c9c9] px-2.5 pb-2 pt-1.5">
           <div className="flex w-full justify-center space-x-1">
             <RibbonButton onClick={() => setCashOpen(true)} width="w-20" svg={icon("M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10", "text-app-icon-blue")}>Abrir / Fechar<br />Meu Caixa</RibbonButton>
