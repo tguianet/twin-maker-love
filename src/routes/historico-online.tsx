@@ -2,7 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const Route = createFileRoute("/historico-online")({ component: ClosedOrders });
+export const Route = createFileRoute("/historico-online")({
+  head: () => ({ meta: [
+    { title: "TGuia Food - Histórico do Caixa" },
+    { name: "description", content: "Consulta de comandas encerradas e recebimentos do caixa." },
+    { property: "og:title", content: "TGuia Food - Histórico do Caixa" },
+    { property: "og:description", content: "Consulta de comandas encerradas e recebimentos do caixa." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
+  component: ClosedOrders,
+});
 type ClosedOrder = { id: string; order_number: number; customer_name: string | null; closed_at: string | null; order_payments: { id: string; method: string; amount: number }[] };
 const money = (n: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
 function ClosedOrders() {

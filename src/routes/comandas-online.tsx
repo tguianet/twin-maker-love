@@ -3,7 +3,17 @@ import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PaymentModal, type PaymentMethod } from "../components/PaymentModal";
 
-export const Route = createFileRoute("/comandas-online")({ component: SharedOrdersPage });
+export const Route = createFileRoute("/comandas-online")({
+  head: () => ({ meta: [
+    { title: "TGuia Food - Caixa e Comandas" },
+    { name: "description", content: "Consulta de comandas e recebimentos do restaurante." },
+    { property: "og:title", content: "TGuia Food - Caixa e Comandas" },
+    { property: "og:description", content: "Consulta de comandas e recebimentos do restaurante." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
+  component: SharedOrdersPage,
+});
 
 type Membership = { organization_id: string; organizations: { name: string } | null };
 type Order = {

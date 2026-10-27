@@ -2,7 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const Route = createFileRoute("/gestao")({ component: Gestao });
+export const Route = createFileRoute("/gestao")({
+  head: () => ({ meta: [
+    { title: "TGuia Food - Gestão do Restaurante" },
+    { name: "description", content: "Gestão de produtos, estoque e mesas do restaurante." },
+    { property: "og:title", content: "TGuia Food - Gestão do Restaurante" },
+    { property: "og:description", content: "Gestão de produtos, estoque e mesas do restaurante." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
+  component: Gestao,
+});
 type Org = { id: string; name: string };
 type Category = { id: string; name: string };
 type Product = { id: string; code: string | null; name: string; sale_price: number; active: boolean; category_id: string | null };

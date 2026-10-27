@@ -1,13 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
-export const Route = createFileRoute("/historico")({ component: HistoryPage });
+export const Route = createFileRoute("/historico")({
+  head: () => ({ meta: [
+    { title: "TGuia Food - Histórico Local" },
+    { name: "description", content: "Histórico de fechamentos locais de demonstração." },
+    { property: "og:title", content: "TGuia Food - Histórico Local" },
+    { property: "og:description", content: "Histórico de fechamentos locais de demonstração." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
+  component: HistoryPage,
+});
 
 type ClosedItem = { name: string; quantity: number; price: number };
 type ClosedOrder = { id: string; table: string; items: ClosedItem[]; subtotal: number; service: number; total: number; paymentMethod: string; closedAt: string; customer?: { id: string; name: string } | null; mode?: string };
 const KEY = "tguia-food-closed-orders-v1";
 const money = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-const methods: Record<string, string> = { pix: "Pix", dinheiro: "Dinheiro", debito: "Débito", credito: "Crédito" };
+const methods: Record<string, string> = { pix: "Pix", dinheiro: "Dinheiro", debito: "Débito", credito: "Crédito", cash: "Dinheiro", debit: "Débito", credit: "Crédito" };
 
 function readHistory(): ClosedOrder[] {
   if (typeof window === "undefined") return [];
