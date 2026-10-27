@@ -206,6 +206,11 @@ function Index() {
     return () => window.clearTimeout(timeout);
   }, [liveCustomerName, liveCustomerSaved, liveCustomerSaving, liveBusy, liveOrder, selectedLiveTable, liveLoadFailed]);
 
+  // Flush a pending customer-name edit before closing so it is never lost.
+  const closeLiveTable = async () => {
+    if (liveOrder && !liveLoadFailed && liveCustomerName.trim().slice(0,120) !== liveCustomerSaved) await saveLiveCustomer();
+    setSelectedLiveTable(null);
+  };
   const saveLiveOrder = async () => {
     if (!selectedLiveTable || !liveOrg || !supabase || liveBusy || liveLoadFailed) return;
     setLiveBusy(true); setLiveNotice("");
@@ -390,7 +395,7 @@ function Index() {
         <section role="dialog" aria-modal="true" aria-label={"Mesa/Comanda "+selectedLiveTable.number} className="flex h-[633px] max-h-[92vh] w-[741px] max-w-[96vw] flex-col overflow-hidden border border-[#999] bg-white font-[Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] text-[12px] text-[#273142] shadow-2xl">
           <div className="flex h-[30px] shrink-0 items-center justify-between border-b border-[#a0a0a0] bg-gradient-to-b from-[#e6e6e6] to-[#d4d4d4] px-2">
             <strong>Mesa/Comanda: {selectedLiveTable.number} {liveOrder?"(#"+liveOrder.order_number+")":""}</strong>
-            <button onClick={() => setSelectedLiveTable(null)} aria-label="Fechar comanda" className="h-6 w-7 border border-[#aaa] bg-[#e1e1e1] hover:bg-red-200">×</button>
+            <button onClick={() => void closeLiveTable()} aria-label="Fechar comanda" className="h-6 w-7 border border-[#aaa] bg-[#e1e1e1] hover:bg-red-200">×</button>
           </div>
           <div className="flex min-h-[69px] shrink-0 items-center gap-4 border-b border-[#d3d3d3] px-4">
             <span className="text-[27px] font-bold text-[#2f9b61]">{String(selectedLiveTable.number).padStart(2,"0")}</span>
@@ -423,7 +428,7 @@ function Index() {
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-[#ccc] bg-[#f7f7f7] p-2">
-            <button onClick={() => setSelectedLiveTable(null)} className="px-3 py-2 font-semibold text-[#1a79bb]">‹ Voltar (ESC)</button>
+            <button onClick={() => void closeLiveTable()} className="px-3 py-2 font-semibold text-[#1a79bb]">‹ Voltar (ESC)</button>
             <div className="flex flex-wrap gap-2">
               {liveOrder?.status==="open"&&<button type="button" onClick={()=>void sendLiveOrderToCashier()} disabled={liveBusy||liveLoadFailed||liveItems.length===0} className="border border-[#aaa] bg-white px-3 py-2 disabled:opacity-40">Encaminhar ao caixa</button>}
               {liveOrder&&<a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border border-[#aaa] bg-white px-3 py-2">Pagamento (F5)</a>}
