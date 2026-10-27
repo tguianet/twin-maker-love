@@ -15,6 +15,9 @@ function ProductsPDV(){
  const [query,setQuery]=useState("");const [form,setForm]=useState(blank);const [edit,setEdit]=useState<string|null>(null);
  const [categoryName,setCategoryName]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
  const [authenticated,setAuthenticated]=useState(false);
+ const [stack,setStack]=useState<string[]>([]);
+ const openPanel=(id:string)=>{setView(id as typeof view);setStack(previous=>[...previous.filter(x=>x!==id),id]);setError("");setNotice("");};
+ const closePanel=()=>{setStack(previous=>{const next=previous.slice(0,-1);setView((next[next.length-1]||null) as typeof view);return next;});};
  const load=async(id:string)=>{
   const [p,c]=await Promise.all([
    supabase.from("products").select("id,code,name,sale_price,active,category_id").eq("organization_id",id).order("name"),
@@ -60,7 +63,7 @@ function ProductsPDV(){
    <div className="flex h-[99px] gap-0 overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-[#333]">
     {groups.map(group=><section key={group} className="flex shrink-0 flex-col justify-between border-r border-[#c9c9c9] px-2 pb-1 pt-1">
      <div className="flex flex-1 items-center">
-      {commands.filter(cmd=>cmd.group===group).map(cmd=><button key={cmd.id} type="button" onClick={()=>{setView(cmd.id);setError("");setNotice("");}} aria-pressed={view===cmd.id} className={"flex h-[67px] w-[76px] flex-col items-center justify-center gap-1 rounded-sm px-1 hover:bg-white/60 "+(view===cmd.id?"bg-white/70":"")}>
+      {commands.filter(cmd=>cmd.group===group).map(cmd=><button key={cmd.id} type="button" onClick={()=>openPanel(cmd.id)} aria-pressed={view===cmd.id} className={"flex h-[67px] w-[76px] flex-col items-center justify-center gap-1 rounded-sm px-1 hover:bg-white/60 "+(view===cmd.id?"bg-white/70":"")}>
        <span aria-hidden="true" className="text-[28px] leading-none">{cmd.icon}</span><span className="text-center text-[11px] leading-tight">{cmd.name}</span>
       </button>)}
      </div>
@@ -68,12 +71,15 @@ function ProductsPDV(){
     </section>)}
    </div>
   </header>
-  <div className="flex-1 p-3">
-   {view&&<section className="mx-auto w-full max-w-[1180px] overflow-hidden border border-[#777] bg-white shadow-xl">
-    <div className="flex items-center justify-between bg-[#3e3e3e] px-3 py-2 text-xs font-semibold text-white"><span>{labels[view]} — TGuia Food</span><button type="button" onClick={()=>setView(null)} aria-label="Fechar janela" className="px-3 text-lg hover:bg-red-700">×</button></div>
+  <div className="relative min-h-[calc(100vh-139px)] flex-1 overflow-hidden">
+   <iframe title="Mesas do restaurante ao fundo" src="/" tabIndex={-1} className="absolute inset-0 h-full w-full border-0" />
+   {stack.length>0&&<div className="absolute inset-0 bg-black/40" aria-hidden="true"/>}
+   <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
+   {view&&<section className="pointer-events-auto w-full max-w-[1060px] overflow-hidden border border-[#777] bg-white shadow-xl">
+    <div className="flex items-center justify-between bg-[#3e3e3e] px-3 py-2 text-xs font-semibold text-white"><span>{labels[view]} — TGuia Food</span><button type="button" onClick={closePanel} aria-label="Fechar janela" className="px-3 text-lg hover:bg-red-700">×</button></div>
    {error&&<p role="alert" className="border-b bg-red-50 p-3 text-sm text-red-700">{error}</p>}
    {notice&&<p role="status" className="border-b bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
-   {!authenticated?<div className="p-5"><a href="/gestao" className="text-blue-700 underline">Entrar na Gestão</a></div>:
+   {!authenticated?<div className="p-5"><p role="status" className="mb-2">Conecte seu usuário de restaurante para consultar dados reais.</p><a href="/gestao" className="text-blue-700 underline">Entrar na Gestão</a></div>:
    view==="products"?<div className="grid gap-4 p-4 lg:grid-cols-[320px_1fr]">
     <form onSubmit={save} className="space-y-3 border bg-[#f3f3f3] p-4">
      <h2 className="font-semibold">{edit?"Editar produto":"Novo produto"}</h2>
@@ -92,6 +98,7 @@ function ProductsPDV(){
     </section>
    </div>:view==="categories"?<div className="space-y-4 p-5"><h2 className="font-semibold">Categorias cadastradas</h2><form className="flex flex-wrap gap-2" onSubmit={addCategory}><input required value={categoryName} maxLength={100} onChange={e=>setCategoryName(e.target.value)} className={field+" max-w-sm"} placeholder="Nova categoria"/><button disabled={busy} className={button}>Adicionar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(x=><span key={x.id} className="border bg-[#eee] px-3 py-2">{x.name}</span>)}</div></div>:<div className="p-6"><h2 className="mb-2 text-base font-semibold">{labels[view]}</h2><p className="text-sm">Esta função ainda não está integrada ao cadastro real. Nenhuma informação será gravada até a implementação do módulo.</p></div>}
    </section>}
+   </div>
   </div>
  </main>;
 }
