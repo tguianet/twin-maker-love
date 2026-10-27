@@ -111,6 +111,7 @@ export function TableOrderModal() {
   useEffect(() => {
     if (!selectedTable || productsOpen || customerModalOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof Element && event.target.closest('[role="dialog"][data-state="open"]')) return;
       if (event.key === "Escape") {
         if (actionItemCode) setActionItemCode(null);
         else if (quickProduct) {

@@ -2,8 +2,9 @@ import { useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Banknote, CreditCard, Diamond, X, ChevronLeft, ChevronDown, Info, Printer, Percent, Eraser, Check, Trash2 } from "lucide-react";
 import { Button } from "./ui/button";
+import { isFullPayment, type PaymentMethod } from "../lib/payment-rules";
 
-export type PaymentMethod = "cash" | "pix" | "credit" | "debit";
+export type { PaymentMethod } from "../lib/payment-rules";
 const methods = [
   { id: "cash" as const, label: "Dinheiro", key: "A", icon: Banknote },
   { id: "pix" as const, label: "Pix", key: "P", icon: Diamond },
@@ -44,7 +45,7 @@ export function PaymentModal({ table, orderNumber, subtotal, service, cashOpen, 
   const remaining = Math.max(0, total - paid);
   const addPayment = () => {
     const value = Number(amount.replace(/\./g, "").replace(",", "."));
-    if (!Number.isFinite(value) || Math.round(value * 100) !== Math.round(total * 100) || total <= 0) {
+    if (!isFullPayment(value, total)) {
       setEntryError("Informe o valor integral da conta. Pagamentos parciais não estão disponíveis."); return;
     }
     if ((entry === "credit" || entry === "debit") && !brand) { setEntryError("Selecione a bandeira."); return; }
