@@ -54,16 +54,16 @@ function ProductsPDV(){
  const labels:Record<string,string>={products:"Produtos",categories:"Categorias",complementos:"Complementos",observacoes:"Observações",tipos:"Tipos e Tamanhos",perguntas:"Perguntas",insumos:"Insumos",lote:"Alterar em Lote",nfe:"Alterar com NFe"};
  return <main className="flex min-h-screen flex-col bg-[#f0f0f0] font-[Segoe_UI,Tahoma,Arial,sans-serif] text-[#303030]">
   <header className="shrink-0 bg-[#383838] text-white">
-   <div className="flex h-10 items-end gap-1 overflow-x-auto px-2 text-[11px]">
+   <div className="flex h-9 items-end gap-0 overflow-x-auto px-2 text-[11px]">
     <a href="/" className="shrink-0 px-3 py-3 hover:bg-[#505050]">PRINCIPAL</a>
     <span className="shrink-0 rounded-t-sm bg-[#e6e6e6] px-4 py-3 font-semibold text-[#333]">PRODUTOS</span>
     {["MARKETING","FINANCEIRO","RELATÓRIOS","APPS","CONFIGURAÇÕES"].map(label=><span key={label} className="shrink-0 px-3 py-3 text-[#d0d0d0]">{label}</span>)}
     <span className="shrink-0 px-3 py-3 text-[#ccc]">⌕ Pesquisar</span>
    </div>
-   <div className="flex h-[99px] gap-0 overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-[#333]">
-    {groups.map(group=><section key={group} className="flex shrink-0 flex-col justify-between border-r border-[#c9c9c9] px-2 pb-1 pt-1">
+   <div className="flex h-[104px] gap-0 overflow-x-auto border-b border-[#bcbcbc] bg-[#e6e6e6] text-[#333] shadow-inner">
+    {groups.map(group=><section key={group} className="flex shrink-0 flex-col justify-between border-r border-[#c9c9c9] px-2.5 pb-1 pt-1.5">
      <div className="flex flex-1 items-center">
-      {commands.filter(cmd=>cmd.group===group).map(cmd=><button key={cmd.id} type="button" onClick={()=>openPanel(cmd.id)} aria-pressed={view===cmd.id} className={"flex h-[67px] w-[76px] flex-col items-center justify-center gap-1 rounded-sm px-1 hover:bg-white/60 "+(view===cmd.id?"bg-white/70":"")}>
+      {commands.filter(cmd=>cmd.group===group).map(cmd=><button key={cmd.id} type="button" onClick={()=>openPanel(cmd.id)} aria-pressed={view===cmd.id} className={"flex h-[68px] w-[76px] flex-col items-center justify-center gap-1 rounded-sm px-1 transition-colors hover:bg-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500 "+(view===cmd.id?"bg-white/70":"")}>
        <span aria-hidden="true" className="text-[28px] leading-none">{cmd.icon}</span><span className="text-center text-[11px] leading-tight">{cmd.name}</span>
       </button>)}
      </div>
@@ -71,17 +71,17 @@ function ProductsPDV(){
     </section>)}
    </div>
   </header>
-  <div className="relative min-h-[calc(100vh-139px)] flex-1 overflow-hidden">
+  <div className="relative min-h-[calc(100vh-140px)] flex-1 overflow-hidden bg-[#ededed]">
    <iframe title="Mesas do restaurante ao fundo" src="/" tabIndex={-1} className="absolute inset-0 h-full w-full border-0" />
-   {stack.length>0&&<div className="absolute inset-0 bg-black/40" aria-hidden="true"/>}
+   {stack.length>0&&<div className="absolute inset-0 bg-[#14202e]/50" aria-hidden="true"/>}
    <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
-   {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:`${28+i*34}px`,left:`calc(50% - min(530px, 46vw) + ${i*14}px)`,zIndex:20+i,width:"min(1060px,92vw)",height:"min(670px,calc(100vh - 220px))"}} className="pointer-events-auto flex flex-col overflow-hidden border border-[#777] bg-white shadow-2xl">
-    <div className="flex items-center justify-between bg-[#3e3e3e] px-3 py-2 text-xs font-semibold text-white"><span>{labels[panel]} — TGuia Food</span><button type="button" onClick={()=>{setStack(current=>current.filter(x=>x!==panel));if(view===panel)setView((stack.filter(x=>x!==panel).at(-1)||null) as typeof view);}} aria-label="Fechar janela" className="px-3 text-lg hover:bg-red-700">×</button></div>
+   {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:`${Math.min(26+i*28,120)}px`,left:`calc(50% - min(530px, 46vw) + ${Math.min(i*12,48)}px)`,zIndex:20+i,width:"min(1060px,92vw)",height:"min(690px,calc(100vh - 190px))"}} className="pointer-events-auto flex flex-col overflow-hidden border border-[#777] bg-[#f7f7f7] text-[12px] shadow-[0_16px_45px_rgba(0,0,0,0.4)]">
+    <div onClick={()=>{setStack(current=>[...current.filter(x=>x!==panel),panel]);setView(panel as typeof view);}} className="flex h-8 shrink-0 cursor-default items-center justify-between border-b border-[#292929] bg-[#3e3e3e] px-3 text-xs font-semibold text-white"><span>{labels[panel]} — TGuia Food</span><button type="button" onClick={()=>{setStack(current=>current.filter(x=>x!==panel));if(view===panel)setView((stack.filter(x=>x!==panel).at(-1)||null) as typeof view);}} aria-label="Fechar janela" className="flex h-8 w-10 items-center justify-center text-lg hover:bg-[#e81123]">×</button></div>
    {error&&<p role="alert" className="border-b bg-red-50 p-3 text-sm text-red-700">{error}</p>}
    {notice&&<p role="status" className="border-b bg-green-50 p-3 text-sm text-green-700">{notice}</p>}
    {!authenticated?<div className="p-5"><p role="status" className="mb-2">Conecte seu usuário de restaurante para consultar dados reais.</p><a href="/gestao" className="text-blue-700 underline">Entrar na Gestão</a></div>:
-   panel==="products"?<div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 lg:grid-cols-[320px_1fr]">
-    <form onSubmit={save} className="space-y-3 border bg-[#f3f3f3] p-4">
+   panel==="products"?<div className="grid min-h-0 flex-1 gap-3 overflow-auto bg-white p-3 lg:grid-cols-[295px_1fr]">
+    <form onSubmit={save} className="space-y-3 border border-[#bcbcbc] bg-[#f0f0f0] p-3">
      <h2 className="font-semibold">{edit?"Editar produto":"Novo produto"}</h2>
      <label className="block text-xs">Código<input className={field} value={form.code} maxLength={80} onChange={e=>setForm({...form,code:e.target.value})}/></label>
      <label className="block text-xs">Nome<input required className={field} value={form.name} maxLength={200} onChange={e=>setForm({...form,name:e.target.value})}/></label>
@@ -92,11 +92,11 @@ function ProductsPDV(){
     </form>
     <section className="min-w-0"><h2 className="mb-3 font-semibold">Produtos cadastrados ({products.length})</h2>
      <input className={field} placeholder="Buscar produto ou código" aria-label="Buscar produtos" value={query} onChange={e=>setQuery(e.target.value)}/>
-     <div className="mt-3 max-h-[550px] overflow-auto"><table className="w-full min-w-[490px] border-collapse text-left text-xs"><thead className="sticky top-0 bg-[#eee]"><tr>{["Código","Produto","Preço","Situação","Ações"].map(x=><th key={x} className="border p-2">{x}</th>)}</tr></thead>
+     <div className="mt-3 max-h-[480px] overflow-auto border border-[#c9c9c9]"><table className="w-full min-w-[490px] border-collapse text-left text-xs"><thead className="sticky top-0 bg-[#eee]"><tr>{["Código","Produto","Preço","Situação","Ações"].map(x=><th key={x} className="border p-2">{x}</th>)}</tr></thead>
       <tbody>{visible.map(p=><tr key={p.id} className="border-b hover:bg-[#eef5fb]"><td className="p-2">{p.code||"—"}</td><td className="p-2">{p.name}</td><td className="p-2">{money(Number(p.sale_price))}</td><td className="p-2">{p.active?"Ativo":"Inativo"}</td><td className="whitespace-nowrap p-2"><button className="mr-2 text-blue-700 underline" onClick={()=>{setEdit(p.id);setForm({code:p.code||"",name:p.name,sale_price:String(p.sale_price),category_id:p.category_id||"",active:p.active})}}>Editar</button><button disabled={busy} className="text-blue-700 underline" onClick={()=>void toggle(p)}>{p.active?"Desativar":"Ativar"}</button></td></tr>)}</tbody></table>
       {!visible.length&&<p className="p-4 text-gray-500">Nenhum produto encontrado.</p>}</div>
     </section>
-   </div>:panel==="categories"?<div className="min-h-0 flex-1 space-y-4 overflow-auto p-5"><h2 className="font-semibold">Categorias cadastradas</h2><form className="flex flex-wrap gap-2" onSubmit={addCategory}><input required value={categoryName} maxLength={100} onChange={e=>setCategoryName(e.target.value)} className={field+" max-w-sm"} placeholder="Nova categoria"/><button disabled={busy} className={button}>Adicionar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(x=><span key={x.id} className="border bg-[#eee] px-3 py-2">{x.name}</span>)}</div></div>:<div className="p-6"><h2 className="mb-2 text-base font-semibold">{labels[panel]}</h2><p className="text-sm">Esta função ainda não está integrada ao cadastro real. Nenhuma informação será gravada até a implementação do módulo.</p></div>}
+   </div>:panel==="categories"?<div className="min-h-0 flex-1 space-y-4 overflow-auto bg-white p-5"><h2 className="font-semibold">Categorias cadastradas</h2><form className="flex flex-wrap gap-2" onSubmit={addCategory}><input required value={categoryName} maxLength={100} onChange={e=>setCategoryName(e.target.value)} className={field+" max-w-sm"} placeholder="Nova categoria"/><button disabled={busy} className={button}>Adicionar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(x=><span key={x.id} className="border bg-[#eee] px-3 py-2">{x.name}</span>)}</div></div>:<div className="p-6"><h2 className="mb-2 text-base font-semibold">{labels[panel]}</h2><p className="text-sm">Esta função ainda não está integrada ao cadastro real. Nenhuma informação será gravada até a implementação do módulo.</p></div>}
    </section>)}
    </div>
   </div>
