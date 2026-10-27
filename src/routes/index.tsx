@@ -78,8 +78,7 @@ function readTableNames(): Record<string, string> {
 }
 
 function Index() {
-  const [embedded,setEmbedded]=useState(false);
-  useEffect(()=>{setEmbedded(new URLSearchParams(window.location.search).get("embedded")==="1");},[]);
+  const embedded = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embedded")==="1";
   const [tableStates, setTableStates] = useState<Record<string, boolean>>(() => readTableStates());
   const [tableNames, setTableNames] = useState<Record<string, string>>(() => readTableNames());
   const [ordersWithItems, setOrdersWithItems] = useState<Set<string>>(() => readOrdersWithItems());
