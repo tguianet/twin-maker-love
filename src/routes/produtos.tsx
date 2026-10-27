@@ -86,7 +86,7 @@ function ProductsPDV(){
    </div>
   </header>
   <div className="relative min-h-[calc(100vh-140px)] flex-1 overflow-hidden bg-[#ededed]">
-   <iframe title="Mesas do restaurante ao fundo" src="/?embedded=1" tabIndex={-1} className="absolute inset-0 h-full w-full border-0" />
+   <iframe title="Mesas do restaurante ao fundo" src="/?embedded=1" tabIndex={-1} onLoad={event=>{const doc=event.currentTarget.contentDocument;if(!doc)return;const nav=doc.querySelector("nav");const toolbar=nav?.nextElementSibling;for(const element of [doc.querySelector("header"),nav,toolbar,doc.querySelector("footer")]){if(element instanceof event.currentTarget.contentWindow!.HTMLElement)element.style.setProperty("display","none","important");}}} className="absolute inset-0 h-full w-full border-0" />
    {stack.length>0&&<div className="absolute inset-0 bg-[#14202e]/50" aria-hidden="true"/>}
    <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
    {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:maximized.includes(panel)?"8px":`${Math.min(26+i*28,120)}px`,left:maximized.includes(panel)?"1%":`calc(50% - min(530px, 46vw) + ${Math.min(i*12,48)}px)`,zIndex:20+i,width:maximized.includes(panel)?"98%":"min(1060px,92vw)",height:minimized.includes(panel)?"34px":maximized.includes(panel)?"calc(100vh - 165px)":"min(690px,calc(100vh - 190px))"}} className={"pointer-events-auto flex flex-col overflow-hidden border bg-[#f7f7f7] text-[12px] shadow-[0_16px_45px_rgba(0,0,0,0.4)] "+(i===stack.length-1?"border-[#4c8bbb] ring-1 ring-[#4c8bbb]":"border-[#777]")}>
