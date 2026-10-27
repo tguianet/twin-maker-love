@@ -79,7 +79,13 @@ function readTableNames(): Record<string, string> {
 }
 
 function Index() {
-  const embedded = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embedded")==="1";
+  // false on the server so the first client render matches SSR; the real value
+  // is applied in a layout effect so the frame paints with the menu hidden.
+  const [embedded, setEmbedded] = useState(false);
+  const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+  useIsoLayoutEffect(() => {
+    setEmbedded(new URLSearchParams(window.location.search).get("embedded") === "1");
+  }, []);
   const [tableStates, setTableStates] = useState<Record<string, boolean>>(() => readTableStates());
   const [tableNames, setTableNames] = useState<Record<string, string>>(() => readTableNames());
   const [ordersWithItems, setOrdersWithItems] = useState<Set<string>>(() => readOrdersWithItems());
