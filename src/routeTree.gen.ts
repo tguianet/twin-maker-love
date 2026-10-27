@@ -14,6 +14,7 @@ import { Route as ComandasOnlineRouteImport } from './routes/comandas-online'
 import { Route as GestaoRouteImport } from './routes/gestao'
 import { Route as HistoricoRouteImport } from './routes/historico'
 import { Route as HistoricoOnlineRouteImport } from './routes/historico-online'
+import { Route as ProdutosRouteImport } from './routes/produtos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const HistoricoOnlineRoute = HistoricoOnlineRouteImport.update({
   path: '/historico-online',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProdutosRoute = ProdutosRouteImport.update({
+  id: '/produtos',
+  path: '/produtos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/gestao': typeof GestaoRoute
   '/historico': typeof HistoricoRoute
   '/historico-online': typeof HistoricoOnlineRoute
+  '/produtos': typeof ProdutosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/gestao': typeof GestaoRoute
   '/historico': typeof HistoricoRoute
   '/historico-online': typeof HistoricoOnlineRoute
+  '/produtos': typeof ProdutosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,25 @@ export interface FileRoutesById {
   '/gestao': typeof GestaoRoute
   '/historico': typeof HistoricoRoute
   '/historico-online': typeof HistoricoOnlineRoute
+  '/produtos': typeof ProdutosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/comandas-online' | '/gestao' | '/historico' | '/historico-online'
+    | '/'
+    | '/comandas-online'
+    | '/gestao'
+    | '/historico'
+    | '/historico-online'
+    | '/produtos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/comandas-online' | '/gestao' | '/historico' | '/historico-online'
+  to:
+    | '/'
+    | '/comandas-online'
+    | '/gestao'
+    | '/historico'
+    | '/historico-online'
+    | '/produtos'
   id:
     | '__root__'
     | '/'
@@ -76,6 +96,7 @@ export interface FileRouteTypes {
     | '/gestao'
     | '/historico'
     | '/historico-online'
+    | '/produtos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -84,6 +105,7 @@ export interface RootRouteChildren {
   GestaoRoute: typeof GestaoRoute
   HistoricoRoute: typeof HistoricoRoute
   HistoricoOnlineRoute: typeof HistoricoOnlineRoute
+  ProdutosRoute: typeof ProdutosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -123,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HistoricoOnlineRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/produtos': {
+      id: '/produtos'
+      path: '/produtos'
+      fullPath: '/produtos'
+      preLoaderRoute: typeof ProdutosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -132,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   GestaoRoute: GestaoRoute,
   HistoricoRoute: HistoricoRoute,
   HistoricoOnlineRoute: HistoricoOnlineRoute,
+  ProdutosRoute: ProdutosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
