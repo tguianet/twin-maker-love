@@ -70,7 +70,6 @@ function ProductsPDV(){
       </button>)}
      </div>
      <span className="text-center text-[10px] text-[#858585]">{group}</span>
-    </>}
    </section>)}
    </div>
   </header>
@@ -100,6 +99,7 @@ function ProductsPDV(){
       {!visible.length&&<p className="p-4 text-gray-500">Nenhum produto encontrado.</p>}</div>
     </section>
    </div>:panel==="categories"?<div className="min-h-0 flex-1 space-y-4 overflow-auto bg-white p-5"><h2 className="font-semibold">Categorias cadastradas</h2><form className="flex flex-wrap gap-2" onSubmit={addCategory}><input required value={categoryName} maxLength={100} onChange={e=>setCategoryName(e.target.value)} className={field+" max-w-sm"} placeholder="Nova categoria"/><button disabled={busy} className={button}>Adicionar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(x=><span key={x.id} className="border bg-[#eee] px-3 py-2">{x.name}</span>)}</div></div>:<div className="p-6"><h2 className="mb-2 text-base font-semibold">{labels[panel]}</h2><p className="text-sm">Esta função ainda não está integrada ao cadastro real. Nenhuma informação será gravada até a implementação do módulo.</p></div>}
+   </>}
    </>}
    </section>)}
    </div>
