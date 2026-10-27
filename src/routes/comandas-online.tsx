@@ -1,8 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PaymentModal, type PaymentMethod } from "../components/PaymentModal";
 
-export const Route = createFileRoute("/comandas-online")({ component: SharedOrdersPage });
+export const Route = createFileRoute("/comandas-online")({
+  head: () => ({ meta: [
+    { title: "TGuia Food - Caixa e Comandas" },
+    { name: "description", content: "Consulta de comandas e recebimentos do restaurante." },
+    { property: "og:title", content: "TGuia Food - Caixa e Comandas" },
+    { property: "og:description", content: "Consulta de comandas e recebimentos do restaurante." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary_large_image" },
+  ] }),
+  component: SharedOrdersPage,
+});
 
 type Membership = { organization_id: string; organizations: { name: string } | null };
 type Order = {
@@ -37,7 +48,6 @@ function SharedOrdersPage() {
   const [message, setMessage] = useState("");
   const [changingStatus, setChangingStatus] = useState<string | null>(null);
   const [settling, setSettling] = useState<string | null>(null);
-  const [payMethod, setPayMethod] = useState<Record<string,string>>({});
   const [paymentOrderId, setPaymentOrderId] = useState<string | null>(null);
   const [cashOpen, setCashOpen] = useState(false);
   useEffect(() => {
@@ -159,13 +169,12 @@ function SharedOrdersPage() {
       setError(err instanceof Error ? err.message : "Falha ao mudar o status.");
     } finally { setChangingStatus(null); }
   };
-  const settleOrder = async (order: Order) => {
+  const settleOrder = async (order: Order, method: PaymentMethod) => {
     if (!client || settling || order.status !== "closing") return;
     const { data: openCash, error: cashError } = await client.from("cash_sessions")
       .select("id").eq("organization_id", org).is("closed_at", null).limit(1);
     if (cashError) { setError("Não foi possível verificar o caixa: " + cashError.message); return; }
     if (!openCash?.length) { setError("Abra o caixa na tela principal antes de confirmar o pagamento."); return; }
-    const method = payMethod[order.id] || "cash";
     const subtotal = order.order_items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.unit_price), 0);
     const total = Math.round(subtotal * (1 + serviceRate / 100) * 100) / 100;
     if (total <= 0) { setError("Não é possível quitar uma comanda vazia."); return; }
@@ -279,26 +288,7 @@ function SharedOrdersPage() {
       if(!order)return null;
       const subtotal=order.order_items.reduce((n,i)=>n+Number(i.quantity)*Number(i.unit_price),0);
       const service=Math.round(subtotal*serviceRate)/100;
-      const total=Math.round((subtotal+service)*100)/100;
-      const method=payMethod[order.id]||"cash";
-      const options=[{id:"cash",key:"A",label:"Dinheiro"},{id:"pix",key:"P",label:"Pix"},{id:"credit",key:"C",label:"Crédito"},{id:"debit",key:"B",label:"Débito"}];
-      return <div className="fixed inset-0 z-[250] flex items-center justify-center bg-[#595959]/85 p-3">
-        <section role="dialog" aria-modal="true" aria-label={"Pagamento da comanda "+order.order_number} className="flex max-h-[95vh] w-[960px] max-w-[96vw] flex-col overflow-hidden rounded-t-sm border border-[#303335] bg-white font-[Segoe_UI,Tahoma,Geneva,Verdana,sans-serif] text-[12px] shadow-2xl">
-          <header className="flex items-center justify-between bg-[#3a3d40] px-3 py-1.5 text-white"><h2 className="text-[13px] font-semibold">Pagamento - Comanda {order.table_id?String(tables[order.table_id]||"").padStart(2,"0"):"—"}, Pedido {order.order_number}</h2><button type="button" aria-label="Fechar pagamento" onClick={()=>setPaymentOrderId(null)} className="px-2 hover:bg-red-700">✕</button></header>
-          <div className="flex items-center justify-between border-b border-gray-200 bg-[#f8f9fa] px-4 py-2"><span className="text-gray-700">Conferir e rachar a conta <span className="ml-2 text-gray-400">(divisão de pagamentos ainda não habilitada)</span></span><span className={cashOpen?"font-semibold text-[#1e7e34]":"font-semibold text-red-700"}>{cashOpen?"ⓘ Caixa aberto":"Caixa fechado"}</span></div>
-          <div className="flex min-h-[380px] flex-1 overflow-auto">
-            <div className="flex w-9 shrink-0 items-center justify-center border-r border-gray-300 bg-[#f4f5f7] py-4"><span className="text-[11px] text-gray-600" style={{writingMode:"vertical-rl",transform:"rotate(180deg)"}}>Conferir Itens e rachar a conta</span></div>
-            <section className="flex w-48 shrink-0 flex-col border-r border-gray-300 bg-[#fdfdfd] p-2.5"><h3 className="mb-2 font-semibold">Adicionar Pagamento</h3><div className="flex flex-col gap-1.5">
-              {options.map(option=><button key={option.id} type="button" aria-pressed={method===option.id} onClick={()=>setPayMethod(prev=>({...prev,[order.id]:option.id}))} className={"flex items-center gap-2.5 rounded border px-2.5 py-2 text-left font-semibold shadow-sm "+(method===option.id?"border-[#1b62a6] bg-[#f0f6fc] text-[#1b62a6]":"border-gray-300 bg-white text-gray-800 hover:bg-gray-50")}><span className="flex h-6 w-6 items-center justify-center rounded border border-current">{option.key}</span>{option.key} - {option.label}</button>)}
-              {["V. Refeição","Fiado","Outros"].map(label=><button key={label} type="button" disabled title="Requer suporte financeiro específico no banco" className="flex items-center gap-2.5 rounded border border-gray-300 bg-gray-100 px-2.5 py-2 text-left text-gray-400"><span className="flex h-6 w-6 items-center justify-center">·</span>{label} (indisponível)</button>)}
-            </div></section>
-            <section className="flex min-w-0 flex-1 flex-col bg-white p-4"><div className="mb-auto overflow-hidden rounded-t-sm border border-[#72a4d2]"><h3 className="border-b border-dashed border-[#72a4d2] bg-[#f0f6fc] px-3 py-1.5 font-bold text-[#1b62a6]">▾ A Pagar / Resumo dos Totais</h3><div className="space-y-2 px-8 py-3">
-              <div className="flex justify-between"><span>Total dos itens</span><strong>{money(subtotal)}</strong></div><div className="flex justify-between border-t border-gray-100 pt-2"><span>(+) Serviço ({serviceRate}%)</span><strong>{money(service)}</strong></div><div className="flex justify-between border-t border-gray-100 pt-2"><span>Total a Pagar</span><strong>{money(total)}</strong></div>
-            </div></div><div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 px-2 pt-3"><div className="flex items-baseline gap-3">Total Pago <strong className="text-2xl text-[#1a66b2]">{money(0)}</strong></div><div className="flex items-baseline gap-3">Falta pagar <strong className="text-2xl">{money(total)}</strong></div></div><p className="mt-3 text-[11px] text-gray-500">Recebimento integral manual. Selecione a forma efetivamente recebida e confirme para registrar no Supabase.</p></section>
-          </div>
-          <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-300 bg-[#f4f5f7] px-4 py-2.5"><div className="flex gap-2"><button disabled title="Descontos ainda não suportados no fechamento financeiro" className="rounded border bg-gray-100 px-3 py-1.5 text-gray-400">Taxas e Descontos</button><button type="button" onClick={()=>window.print()} className="rounded border border-gray-300 bg-white px-3 py-1.5 shadow-sm">▤ Imprimir Cupom</button></div><div className="flex gap-2"><button type="button" onClick={()=>setPaymentOrderId(null)} className="rounded border border-gray-300 bg-white px-3.5 py-1.5">‹ Voltar</button><button type="button" disabled={!cashOpen||settling!==null||total<=0} onClick={()=>void settleOrder(order)} className="rounded bg-[#1b62a6] px-5 py-2 font-medium text-white disabled:opacity-50">{settling===order.id?"Registrando...":"Confirmar pagamento recebido"}</button></div></footer>
-        </section>
-      </div>;
+      return <PaymentModal key={order.id} table={order.table_id ? String(tables[order.table_id] || "").padStart(2, "0") : "—"} orderNumber={order.order_number} subtotal={subtotal} service={service} cashOpen={cashOpen} busy={settling !== null} error={error} onClose={() => setPaymentOrderId(null)} onConfirm={method => void settleOrder(order, method)} />;
     })()}
   </div>;
 }

@@ -173,6 +173,8 @@
   --color-app-line: var(--app-line);
   --color-app-field: var(--app-field);
   --color-app-hover: var(--app-hover);
+  --color-pdv-title: var(--pdv-title);
+  --color-pdv-overlay: var(--pdv-overlay);
 }
 
 :root {
@@ -204,6 +206,8 @@
   --app-line: oklch(0.872 0.01 258.3);
   --app-field: oklch(1 0 0);
   --app-hover: oklch(0.967 0.003 264.5);
+  --pdv-title: oklch(0.365 0 0);
+  --pdv-overlay: oklch(0.28 0 0 / 65%);
 }
 
 .app-scrollbar-hide::-webkit-scrollbar { display: none; }

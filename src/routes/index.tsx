@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CashRegisterModal } from "../components/CashRegisterModal";
+import { PaymentModal, type PaymentMethod } from "../components/PaymentModal";
+import { Button } from "../components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -108,6 +110,37 @@ function Index() {
   const [liveOrder, setLiveOrder] = useState<{id:string;status:string;order_number:number}|null>(null);
   const [liveItems, setLiveItems] = useState<{id:string;product_name:string;quantity:number;unit_price:number}[]>([]);
   const [liveRate, setLiveRate] = useState(0);
+  const [livePaymentOpen, setLivePaymentOpen] = useState(false);
+  const [liveCashAvailable, setLiveCashAvailable] = useState<boolean | null>(null);
+  const [livePaymentError, setLivePaymentError] = useState("");
+  const openLivePayment = async () => {
+    if (!liveOrder || !supabase || liveBusy || liveLoadFailed) return;
+    setLivePaymentError(""); setLiveCashAvailable(null); setLivePaymentOpen(true);
+    const { data, error } = await supabase.from("cash_sessions").select("id").eq("organization_id", liveOrg).is("closed_at", null).limit(1);
+    setLiveCashAvailable(!error && Boolean(data?.length));
+    if (error) setLivePaymentError("Não foi possível verificar o caixa: " + error.message);
+  };
+  const confirmLivePayment = async (method: PaymentMethod) => {
+    if (!supabase || !liveOrder || !selectedLiveTable || liveBusy) return;
+    setLiveBusy(true); setLivePaymentError("");
+    try {
+      const { data: cash, error: cashError } = await supabase.from("cash_sessions").select("id").eq("organization_id", liveOrg).is("closed_at", null).limit(1);
+      if (cashError) throw cashError;
+      if (!cash?.length) throw Error("Abra o caixa antes de confirmar o pagamento.");
+      if (liveOrder.status === "open") {
+        const { data, error } = await supabase.from("orders").update({ status: "closing", closing_at: new Date().toISOString() }).eq("id", liveOrder.id).eq("organization_id", liveOrg).eq("status", "open").select("id").maybeSingle();
+        if (error) throw error;
+        if (!data) throw Error("Comanda alterada em outro terminal. Consulte novamente.");
+        setLiveOrder(current => current ? { ...current, status: "closing" } : null);
+      }
+      const { error } = await supabase.rpc("close_order_manual", { p_order_id: liveOrder.id, p_method: method });
+      if (error) throw error;
+      setLivePaymentOpen(false);
+      await openLiveTable(selectedLiveTable);
+      setLiveNotice("Pagamento registrado e comanda fechada.");
+    } catch (error) { setLivePaymentError(error instanceof Error ? error.message : "Falha ao registrar pagamento."); }
+    finally { setLiveBusy(false); }
+  };
   useEffect(() => {
     let active = true;
     let refreshLive: (() => Promise<void>) | null = null;
@@ -219,6 +252,8 @@ function Index() {
   useEffect(() => {
     if (!selectedLiveTable) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      if (livePaymentOpen) return;
+      if (event.key === "F5" && liveOrder) { event.preventDefault(); void openLivePayment(); }
       if (event.key === "F3" && (!liveOrder || liveOrder.status === "open")) {
         event.preventDefault();
         setLiveProductPickerOpen(true);
@@ -230,7 +265,7 @@ function Index() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedLiveTable, liveOrder, liveProductPickerOpen]);
+  }, [selectedLiveTable, liveOrder, liveProductPickerOpen, livePaymentOpen]);
 
   const addLiveBatch = async () => {
     if (!supabase || !liveOrg || !selectedLiveTable || liveBusy || liveLoadFailed || liveOrder?.status === "closing") return;
@@ -460,7 +495,7 @@ function Index() {
             <button onClick={() => void closeLiveTable()} className="px-3 py-2 font-semibold text-[#1a79bb]">‹ Voltar (ESC)</button>
             <div className="flex flex-wrap gap-2">
               {liveOrder?.status==="open"&&<button type="button" onClick={()=>void sendLiveOrderToCashier()} disabled={liveBusy||liveLoadFailed||liveItems.length===0} className="border border-[#aaa] bg-white px-3 py-2 disabled:opacity-40">Encaminhar ao caixa</button>}
-              {liveOrder&&<a href={"/comandas-online?mesa="+selectedLiveTable.id} className="border border-[#aaa] bg-white px-3 py-2">Pagamento (F5)</a>}
+              {liveOrder&&<Button variant="pdv" size="sm" disabled={liveBusy || liveLoadFailed || liveItems.length === 0} onClick={() => void openLivePayment()}>Pagamento (F5)</Button>}
             </div>
           </div>
         </section>
@@ -488,6 +523,7 @@ function Index() {
           </div>
         </section>
       </div>}
+      {livePaymentOpen && selectedLiveTable && liveOrder && <PaymentModal key={liveOrder.id} table={String(selectedLiveTable.number).padStart(2, "0")} orderNumber={liveOrder.order_number} subtotal={liveItems.reduce((n, i) => n + i.quantity * i.unit_price, 0)} service={Math.round(liveItems.reduce((n, i) => n + i.quantity * i.unit_price, 0) * liveRate) / 100} cashOpen={liveCashAvailable} busy={liveBusy} error={livePaymentError} onClose={() => setLivePaymentOpen(false)} onConfirm={method => void confirmLivePayment(method)} />}
       {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
       <footer className="relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs">
         <div className="flex items-center space-x-2"><div className="h-4 w-8 border border-app-border bg-app-field" /><span className="text-app-text">Exibir Total da Conta e Duração</span></div>
