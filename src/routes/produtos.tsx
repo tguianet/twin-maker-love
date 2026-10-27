@@ -71,6 +71,7 @@ function ProductsPDV(){
      </div>
      <span className="text-center text-[10px] text-[#858585]">{group}</span>
     </>}
+   </>}
    </section>)}
    </div>
   </header>
