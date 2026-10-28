@@ -49,9 +49,9 @@ export function CashHistoryModal({onClose}:{onClose:()=>void}) {
   };
   useEffect(()=>{let active=true;void(async()=>{
     try{
-      const {data:auth,error:authError}=await supabase.auth.getUser();
+      const {data:auth,error:authError}=await (await import("../lib/supabase")).getAppUser();
       if(authError)throw authError;
-      if(!auth.user)throw Error("Faça login na Gestão para consultar o histórico.");
+      if(!auth.user)throw Error("Não foi possível entrar no sistema.");
       const {data,error:memberError}=await supabase.from("organization_members")
         .select("organization_id").eq("user_id",auth.user.id).eq("active",true).limit(1);
       if(memberError)throw memberError;

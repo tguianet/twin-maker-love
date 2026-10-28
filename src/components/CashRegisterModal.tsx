@@ -42,8 +42,8 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
   } else setOrderReceipts([]);
  };
  useEffect(()=>{let mounted=true;void (async()=>{try{
-  const {data:auth,error:e}=await supabase.auth.getUser();if(e)throw e;
-  if(!auth.user)throw Error("Entre na Gestão para acessar o caixa.");
+  const {data:auth,error:e}=await (await import("../lib/supabase")).getAppUser();if(e)throw e;
+  if(!auth.user)throw Error("Não foi possível entrar no sistema.");
   const {data,error:m}=await supabase.from("organization_members").select("organization_id").eq("user_id",auth.user.id).eq("active",true).limit(1);if(m)throw m;
   if(!data?.length)throw Error("Usuário sem restaurante vinculado.");
   if(!mounted)return;setOrg(data[0]!.organization_id);setOperator(auth.user.email||"Operador");
@@ -55,7 +55,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
  const open=()=>run(async()=>{
   const value=Number(balance.replace(/\./g,"").replace(",","."));
   if(!Number.isFinite(value)||value<0)throw Error("Saldo inicial inválido.");
-  const {data:auth}=await supabase.auth.getUser();if(!auth.user)throw Error("Sessão expirada.");
+  const {data:auth}=await (await import("../lib/supabase")).getAppUser();if(!auth.user)throw Error("Sessão expirada.");
   const {error:e}=await supabase.from("cash_sessions").insert({organization_id:org,opened_by:auth.user.id,opening_balance:value,opening_note:note.trim()||null});
   if(e)throw e;setNotice("Caixa aberto.");
  });
@@ -63,7 +63,7 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
   if(!session)throw Error("Abra o caixa.");
   const value=Number(amount.replace(/\./g,"").replace(",","."));
   if(!Number.isFinite(value)||value<=0||!description.trim())throw Error("Informe descrição e valor válido.");
-  const {data:auth}=await supabase.auth.getUser();if(!auth.user)throw Error("Sessão expirada.");
+  const {data:auth}=await (await import("../lib/supabase")).getAppUser();if(!auth.user)throw Error("Sessão expirada.");
   const {error:e}=await supabase.from("cash_movements").insert({session_id:session.id,organization_id:org,created_by:auth.user.id,description:description.trim(),direction,method,amount:value});
   if(e)throw e;setDescription("");setAmount("");setAddOpen(false);setNotice("Movimentação registrada.");
  });

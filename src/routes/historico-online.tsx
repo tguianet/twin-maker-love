@@ -25,9 +25,9 @@ function ClosedOrders() {
   useEffect(() => {
     let active = true;
     void import("../lib/supabase").then(async ({ supabase }) => {
-      const { data: auth, error: authError } = await supabase.auth.getUser();
+      const { data: auth, error: authError } = await (await import("../lib/supabase")).getAppUser();
       if (!active) return;
-      if (authError || !auth.user) { setError("Entre pela Gestão antes de consultar o histórico."); return; }
+      if (authError || !auth.user) { setError(authError?.message || "Não foi possível entrar no sistema."); return; }
       const { data, error: failure } = await supabase.from("organization_members")
         .select("organization_id, organizations(id,name)").eq("user_id", auth.user.id).eq("active", true);
       if (!active) return;

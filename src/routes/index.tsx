@@ -175,9 +175,9 @@ function Index() {
       if (active) setSupabase(browserClient);
       const supabase = browserClient;
       const refresh = async () => {
-        const { data: auth } = await supabase.auth.getUser();
+        const { data: auth, error: authError } = await (await import("../lib/supabase")).getAppUser();
         if (!active) return;
-        if (!auth.user) { setLiveError("Faça login na Gestão para acessar as comandas reais."); setLiveTables(null); setLiveLoading(false); return; }
+        if (!auth.user) { setLiveError(authError?.message || "Não foi possível entrar no sistema."); setLiveTables(null); setLiveLoading(false); return; }
         const { data: memberships, error: memberError } = await supabase.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("active", true).limit(1);
         if (memberError) throw memberError;
         const orgId = memberships?.[0]?.organization_id;
@@ -313,8 +313,8 @@ function Index() {
     setLiveBusy(true);
     setLiveNotice("");
     try {
-      const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !auth.user) throw Error("Faça login na Gestão.");
+      const { data: auth, error: authError } = await (await import("../lib/supabase")).getAppUser();
+      if (authError || !auth.user) throw authError || Error("Não foi possível entrar no sistema.");
       const { data: existing, error: lookupError } = await supabase.from("orders")
         .select("id,status").eq("organization_id", liveOrg).eq("table_id", table.id)
         .in("status", ["open","closing"]).maybeSingle();
@@ -346,8 +346,8 @@ function Index() {
     let completed = 0;
     try {
       if (!orderId) {
-        const {data:auth} = await supabase.auth.getUser();
-        if (!auth.user) throw Error("Faça login na Gestão.");
+        const {data:auth} = await (await import("../lib/supabase")).getAppUser();
+        if (!auth.user) throw Error("Não foi possível entrar no sistema.");
         const {data:existing,error:lookupError} = await supabase.from("orders").select("id,status").eq("organization_id",liveOrg).eq("table_id",selectedLiveTable.id).in("status",["open","closing"]).maybeSingle();
         if (lookupError) throw lookupError;
         if (existing?.status==="closing") throw Error("Esta mesa está em fechamento. Atualize a comanda.");

@@ -52,7 +52,7 @@ function Gestao() {
       .then(async ({ supabase }) => {
         if (!active) return;
         setClient(supabase);
-        const { data } = await supabase.auth.getUser();
+        const { data } = await (await import("../lib/supabase")).getAppUser();
         if (active) setUserId(data.user?.id || "");
       })
       .catch(() => { if (active) setConnectionError("Não foi possível conectar à autenticação. Verifique a configuração do Supabase."); });
