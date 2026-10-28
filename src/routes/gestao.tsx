@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { StaffPinPanel } from "../components/StaffPinPanel";
 
 export const Route = createFileRoute("/gestao")({
   head: () => ({ meta: [
@@ -215,6 +216,7 @@ function Gestao() {
                 <button type="button" className={btn + " mt-2"} onClick={() => void loadOrganizations()}>Verificar acesso novamente</button>
               </div>
             )}
+            {client && orgId && <StaffPinPanel client={client} orgId={orgId} />}
             <nav className="mb-5 flex flex-wrap gap-2 border-b border-[#acbac8] bg-[#e2e2e2] p-2">
               <button className={btn + (tab === "produtos" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("produtos")}>Produtos</button>
               {([["complementos","Complementos"],["observacoes","Observações"],["categorias","Categorias"],["tipos","Tipos e Tamanhos"],["insumos","Insumos"]] as const).map(([id,label])=><button type="button" key={id} className={btn + (tab===id?" border-[#2278aa] bg-white text-[#1160a2]":"")} onClick={()=>setTab(id)}>{label}</button>)}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-type Session = { id:string; opened_at:string; closed_at:string|null; opening_balance:number; opening_note:string|null; closing_note:string|null; opened_by:string };
+type Session = { id:string; opened_at:string; closed_at:string|null; opening_balance:number; opening_note:string|null; closing_note:string|null; opened_by:string; counted_cash:number|null; cash_difference:number|null };
 type CashMove = { id:string; session_id:string; created_at:string; description:string; direction:string; amount:number; method:string };
 type Receipt = { id:string; cash_session_id:string|null; created_at:string; amount:number; method:string; orders:{order_number:number; customer_name:string|null}|null };
 const currency = (amount:number) => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(amount);
@@ -26,7 +26,7 @@ export function CashHistoryModal({onClose}:{onClose:()=>void}) {
     setLoading(true);setError("");
     try {
       const {data:shifts,error:shiftError} = await supabase.from("cash_sessions")
-        .select("id,opened_at,closed_at,opening_balance,opening_note,closing_note,opened_by")
+        .select("id,opened_at,closed_at,opening_balance,opening_note,closing_note,opened_by,counted_cash,cash_difference")
         .eq("organization_id",organization).order("opened_at",{ascending:false}).limit(500);
       if(shiftError)throw shiftError;
       const list=(shifts||[]) as Session[];
@@ -104,9 +104,9 @@ export function CashHistoryModal({onClose}:{onClose:()=>void}) {
           {error&&<p role="alert" className="border-b bg-red-50 p-2 text-red-700">{error}</p>}
           <div className="min-h-0 flex-1 overflow-auto">
             <table className="w-full min-w-[1000px] border-collapse text-left text-[11px]">
-              <thead className="sticky top-0 bg-[#f4f4f4]"><tr>{["Id","Aberto em","Fechado em","Saldo inicial","Saldo final calculado","Usuário","Status do caixa","Observação",...(columns?["Recebimentos","Entradas","Saídas"]:[]),"Detalhes"].map(h=><th key={h} className="whitespace-nowrap border-b border-r p-2 font-normal">{h}</th>)}</tr></thead>
+              <thead className="sticky top-0 bg-[#f4f4f4]"><tr>{["Id","Aberto em","Fechado em","Saldo inicial","Saldo final calculado","Dinheiro contado","Diferença","Usuário","Status do caixa","Observação",...(columns?["Recebimentos","Entradas","Saídas"]:[]),"Detalhes"].map(h=><th key={h} className="whitespace-nowrap border-b border-r p-2 font-normal">{h}</th>)}</tr></thead>
               <tbody>{visible.map((s,index)=>{const b=sums(s.id);return <tr key={s.id} className={selected===s.id?"bg-[#dcecff]":index%2===0?"bg-[#f4f4f4]":"bg-white"}>
-                <td className="border-b p-2" title={s.id}>{s.id.slice(0,8)}</td><td className="whitespace-nowrap border-b p-2">{dateTime(s.opened_at)}</td><td className="whitespace-nowrap border-b p-2">{dateTime(s.closed_at)}</td><td className="border-b p-2 text-right">{currency(Number(s.opening_balance))}</td><td className="border-b p-2 text-right">{currency(b.total)}</td><td className="border-b p-2" title={s.opened_by}>{s.opened_by.slice(0,8)}</td><td className="border-b p-2">{s.closed_at?"🚩 Fechado":"🟢 Aberto"}</td><td className="max-w-[200px] truncate border-b p-2" title={s.opening_note||""}>{s.opening_note||"—"}</td>
+                <td className="border-b p-2" title={s.id}>{s.id.slice(0,8)}</td><td className="whitespace-nowrap border-b p-2">{dateTime(s.opened_at)}</td><td className="whitespace-nowrap border-b p-2">{dateTime(s.closed_at)}</td><td className="border-b p-2 text-right">{currency(Number(s.opening_balance))}</td><td className="border-b p-2 text-right">{currency(b.total)}</td><td className="border-b p-2 text-right">{s.counted_cash==null?"—":currency(Number(s.counted_cash))}</td><td className={"border-b p-2 text-right font-semibold "+(s.cash_difference==null?"":Math.abs(Number(s.cash_difference))<0.005?"text-[#31935b]":"text-[#b91c1c]")} title={s.closing_note||""}>{s.cash_difference==null?"—":(Number(s.cash_difference)<0?"−":Number(s.cash_difference)>0?"+":"")+currency(Math.abs(Number(s.cash_difference)))}</td><td className="border-b p-2" title={s.opened_by}>{s.opened_by.slice(0,8)}</td><td className="border-b p-2">{s.closed_at?"🚩 Fechado":"🟢 Aberto"}</td><td className="max-w-[200px] truncate border-b p-2" title={s.opening_note||""}>{s.opening_note||"—"}</td>
                 {columns&&<><td className="border-b p-2 text-right">{currency(b.received)}</td><td className="border-b p-2 text-right">{currency(b.inTotal)}</td><td className="border-b p-2 text-right">{currency(b.outTotal)}</td></>}
                 <td className="border-b p-2"><button type="button" aria-label="Detalhes do caixa" onClick={()=>setSelected(s.id)} className="font-bold text-sky-600">ⓘ</button></td>
               </tr>;})}</tbody>

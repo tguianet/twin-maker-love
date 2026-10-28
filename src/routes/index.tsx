@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CashRegisterModal } from "../components/CashRegisterModal";
 import { CashHistoryModal } from "../components/CashHistoryModal";
 import { PaymentModal, type PaymentMethod } from "../components/PaymentModal";
+import { CancelItemModal } from "../components/CancelItemModal";
 import { Button } from "../components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -121,6 +122,7 @@ function Index() {
   const [liveProductQuery, setLiveProductQuery] = useState("");
   const [liveOrder, setLiveOrder] = useState<{id:string;status:string;order_number:number}|null>(null);
   const [liveItems, setLiveItems] = useState<{id:string;product_name:string;quantity:number;unit_price:number}[]>([]);
+  const [liveCancelItem, setLiveCancelItem] = useState<{id:string;product_name:string;quantity:number;unit_price:number}|null>(null);
   const [liveRate, setLiveRate] = useState(0);
   const [livePaymentOpen, setLivePaymentOpen] = useState(false);
   const [liveCashAvailable, setLiveCashAvailable] = useState<boolean | null>(null);
@@ -229,7 +231,7 @@ function Index() {
     setLiveOrder(null); setLiveItems([]); setLiveCustomerName(""); setLiveCustomerSaved("");
     try {
       const [orderResult,productResult,orgResult,categoriesResult] = await Promise.all([
-        supabase.from("orders").select("id,status,order_number,customer_name,order_items(id,product_name,quantity,unit_price)").eq("organization_id",liveOrg).eq("table_id",table.id).in("status",["open","closing"]).maybeSingle(),
+        supabase.from("orders").select("id,status,order_number,customer_name,order_items(id,product_name,quantity,unit_price,cancelled_at)").eq("organization_id",liveOrg).eq("table_id",table.id).in("status",["open","closing"]).maybeSingle(),
         supabase.from("products").select("id,name,sale_price,category_id").eq("organization_id",liveOrg).eq("active",true).order("name"),
         supabase.from("organizations").select("service_rate").eq("id",liveOrg).single(),
         supabase.from("product_categories").select("id,name").eq("organization_id",liveOrg).order("name"),
@@ -237,7 +239,8 @@ function Index() {
       if (orderResult.error || productResult.error || orgResult.error || categoriesResult.error) throw orderResult.error || productResult.error || orgResult.error || categoriesResult.error;
       setLiveOrder(orderResult.data ? {id:orderResult.data.id,status:orderResult.data.status,order_number:orderResult.data.order_number} : null);
       setTableOpeningChoice(!orderResult.data);
-      setLiveItems(orderResult.data?.order_items || []);
+      // Cancelled items stay in the database for audit but never count toward the bill.
+      setLiveItems((orderResult.data?.order_items || []).filter(item => !item.cancelled_at));
       setLiveCustomerName(orderResult.data?.customer_name || "");
       setLiveCustomerSaved(orderResult.data?.customer_name || "");
       setLiveProducts(productResult.data || []);
@@ -289,7 +292,7 @@ function Index() {
   useEffect(() => {
     if (!selectedLiveTable) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (livePaymentOpen) return;
+      if (livePaymentOpen || liveCancelItem) return;
       if (event.key === "F5" && liveOrder) { event.preventDefault(); void openLivePayment(); }
       if (event.key === "F3" && (!liveOrder || liveOrder.status === "open")) {
         event.preventDefault();
@@ -302,7 +305,7 @@ function Index() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedLiveTable, liveOrder, liveProductPickerOpen, livePaymentOpen]);
+  }, [selectedLiveTable, liveOrder, liveProductPickerOpen, livePaymentOpen, liveCancelItem]);
 
   const createLiveEmptyOrder = async () => {
     if (!supabase || !liveOrg || !selectedLiveTable || liveBusy || liveLoadFailed || liveOrder) return;
@@ -543,7 +546,7 @@ function Index() {
               <div className="flex h-9 shrink-0 items-center justify-between border-b border-[#ddd] px-2"><strong>Itens do Pedido ({liveItems.reduce((sum,item)=>sum+item.quantity,0)})</strong><span className="text-[11px] text-gray-500">Valores do cadastro real</span></div>
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {liveItems.length===0 && <div className="p-4 text-gray-400">Nenhum item lançado.</div>}
-                {liveItems.map(item=><div key={item.id} className="grid h-9 grid-cols-[28px_1fr_76px] items-center border-b border-gray-100 px-2"><span className="bg-[#e3e3e3] text-center">{item.quantity}</span><span className="truncate pl-2">{item.product_name}</span><strong className="text-right">{new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(item.quantity*item.unit_price)}</strong></div>)}
+                {liveItems.map(item=><div key={item.id} className="group grid h-9 grid-cols-[28px_1fr_76px_28px] items-center border-b border-gray-100 px-2"><span className="bg-[#e3e3e3] text-center">{item.quantity}</span><span className="truncate pl-2">{item.product_name}</span><strong className="text-right">{new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(item.quantity*item.unit_price)}</strong><button type="button" aria-label={"Cancelar "+item.product_name} title="Cancelar item (fica registrado no histórico)" disabled={liveBusy||liveLoadFailed} onClick={()=>setLiveCancelItem(item)} className="ml-1 text-center text-[#b91c1c] opacity-60 hover:opacity-100 disabled:opacity-20">✕</button></div>)}
               </div>
               <div className="shrink-0 border-t border-[#ddd] text-right font-bold">
                 <div className="flex justify-between border-b px-4 py-2"><span>SUBTOTAL:</span><span>{new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(liveItems.reduce((n,i)=>n+i.quantity*i.unit_price,0))}</span></div>
@@ -586,6 +589,11 @@ function Index() {
         </section>
       </div>}
       {livePaymentOpen && selectedLiveTable && liveOrder && <PaymentModal key={liveOrder.id} table={String(selectedLiveTable.number).padStart(2, "0")} orderNumber={liveOrder.order_number} subtotal={liveItems.reduce((n, i) => n + i.quantity * i.unit_price, 0)} service={Math.round(liveItems.reduce((n, i) => n + i.quantity * i.unit_price, 0) * liveRate) / 100} cashOpen={liveCashAvailable} busy={liveBusy} error={livePaymentError} onClose={() => setLivePaymentOpen(false)} onConfirm={method => void confirmLivePayment(method)} />}
+      {liveCancelItem && supabase && selectedLiveTable && <CancelItemModal client={supabase} item={liveCancelItem} onClose={() => setLiveCancelItem(null)} onCancelled={() => {
+        const table = selectedLiveTable;
+        setLiveCancelItem(null);
+        void openLiveTable(table).then(() => { setLiveNotice("Item cancelado e registrado no histórico."); setLiveNoticeSequence(n => n + 1); });
+      }}/>}
       {cashOpen && <CashRegisterModal onClose={() => setCashOpen(false)}/> }
       {cashHistoryOpen && <CashHistoryModal onClose={() => setCashHistoryOpen(false)}/> }
       <footer className={(embedded?"hidden ":"")+"relative z-10 flex h-10 shrink-0 items-center justify-between border-t border-app-border bg-app-chrome px-2 text-xs"}>

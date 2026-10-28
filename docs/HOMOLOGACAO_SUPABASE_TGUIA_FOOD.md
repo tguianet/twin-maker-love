@@ -37,3 +37,16 @@ select has_function_privilege('anon', 'public.add_order_product(uuid,uuid,intege
 ```
 
 A existência da função e das políticas **não comprova** segurança funcional: testes autenticados com organizações diferentes continuam obrigatórios.
+
+## Controles de auditoria (migration `20261028090000_audit_controls.sql`)
+Aplicar **depois** de todas as anteriores, no banco exclusivo do TGuia Food (SQL Editor do Supabase).
+
+O que muda no banco:
+- `audit_log`: registro somente-inserção (nem o administrador apaga ou altera) de pedidos, itens, pagamentos, caixa, produtos, fiado e membros. Só owner/admin leem.
+- Itens não são mais apagados: `cancel_order_item(item, motivo, pin)` marca o item como cancelado com motivo, quem cancelou e quem autorizou. Garçom e caixa precisam do PIN de um owner/admin **diferente** deles. 5 PINs errados em 10 minutos bloqueiam novas tentativas.
+- `set_my_pin` / `has_my_pin`: PIN pessoal de 4 a 6 números (bcrypt), sem PINs óbvios e sem repetir o PIN de outra pessoa.
+- Escrita direta bloqueada em `order_items`, `order_payments` e `cash_sessions`, e DELETE bloqueado em `orders`: tudo passa pelas funções do servidor.
+- `close_cash_session(caixa, contado, justificativa)`: fechamento às cegas. O esperado em dinheiro é calculado no servidor; diferença acima de R$ 10,00 exige justificativa; contado, esperado e diferença ficam gravados.
+- `close_order_manual` e a trava de encerramento passam a ignorar itens cancelados.
+
+Teste local: `supabase/tests/audit_controls.test.sql` (instruções no cabeçalho). Depois de aplicar no banco real, testar com um usuário garçom: cancelar item sem PIN (deve pedir PIN), com PIN do dono (deve cancelar) e fechar o caixa informando o valor contado.
