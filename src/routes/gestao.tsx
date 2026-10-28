@@ -5,9 +5,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const Route = createFileRoute("/gestao")({
   head: () => ({ meta: [
     { title: "TGuia Food - Gestão do Restaurante" },
-    { name: "description", content: "Gestão de produtos, estoque e mesas do restaurante." },
+    { name: "description", content: "Gestão de produtos, categorias e mesas do restaurante." },
     { property: "og:title", content: "TGuia Food - Gestão do Restaurante" },
-    { property: "og:description", content: "Gestão de produtos, estoque e mesas do restaurante." },
+    { property: "og:description", content: "Gestão de produtos, categorias e mesas do restaurante." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
@@ -16,7 +16,6 @@ export const Route = createFileRoute("/gestao")({
 type Org = { id: string; name: string };
 type Category = { id: string; name: string };
 type Product = { id: string; code: string | null; name: string; sale_price: number; active: boolean; category_id: string | null };
-type Stock = { product_id: string; quantity: number };
 type RestaurantTable = { id: string; number: number; name: string | null };
 const currency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const btn = "rounded-sm border border-[#b8c4d1] bg-[#e9eff5] px-3 py-2 text-sm font-semibold text-[#223a50] hover:bg-[#d7e6f3] disabled:opacity-50";
@@ -34,8 +33,7 @@ function Gestao() {
   const [orgId, setOrgId] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [stocks, setStocks] = useState<Stock[]>([]);
-  const [tab, setTab] = useState<"produtos" | "categorias" | "complementos" | "observacoes" | "tipos" | "insumos" | "geladeira" | "mesas">("produtos");
+  const [tab, setTab] = useState<"produtos" | "categorias" | "complementos" | "observacoes" | "tipos" | "insumos" | "mesas">("produtos");
   const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [tableNumber, setTableNumber] = useState("");
   const [tableEnd, setTableEnd] = useState("");
@@ -43,7 +41,6 @@ function Gestao() {
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState<string | null>(null);
-  const [movement, setMovement] = useState({ product_id: "", quantity: "1", note: "" });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -76,17 +73,15 @@ function Gestao() {
 
   const loadData = useCallback(async () => {
     if (!client || !orgId) return;
-    const [cats, items, inventory, tableRows] = await Promise.all([
+    const [cats, items, tableRows] = await Promise.all([
       client.from("product_categories").select("id,name").eq("organization_id", orgId).order("name"),
       client.from("products").select("id,code,name,sale_price,active,category_id").eq("organization_id", orgId).order("name"),
-      client.from("refrigerator_stock").select("product_id,quantity").eq("organization_id", orgId),
       client.from("restaurant_tables").select("id,number,name").eq("organization_id", orgId).order("number"),
     ]);
     if (cats.error || items.error || tableRows.error) { setError(cats.error?.message || items.error?.message || tableRows.error?.message || "Erro ao carregar dados"); return; }
     setCategories((cats.data || []) as Category[]);
     setTables((tableRows.data || []) as RestaurantTable[]);
     setProducts((items.data || []) as Product[]);
-    if (inventory.error) { setStocks([]); } else setStocks((inventory.data || []) as Stock[]);
   }, [client, orgId]);
 
   useEffect(() => { void Promise.resolve().then(loadOrganizations); }, [loadOrganizations]);
@@ -121,7 +116,7 @@ function Gestao() {
   }
   async function logout() {
     await client?.auth.signOut();
-    setUserId(""); setOrganizations([]); setOrgId(""); setProducts([]); setStocks([]); setTables([]);
+    setUserId(""); setOrganizations([]); setOrgId(""); setProducts([]); setTables([]);
   }
   async function saveProduct(event: FormEvent) {
     event.preventDefault();
@@ -148,21 +143,6 @@ function Gestao() {
     setBusy(false);
     if (result.error) setError(result.error.message);
     else await loadData();
-  }
-  async function moveStock(event: FormEvent) {
-    event.preventDefault();
-    if (!client || !orgId || !movement.product_id) return;
-    const qty = Number(movement.quantity.replace(",", "."));
-    if (!Number.isInteger(qty) || qty === 0) { setError("Informe uma quantidade inteira diferente de zero."); return; }
-    setBusy(true); setError(""); setNotice("");
-    const { error: failure } = await client.rpc("register_refrigerator_movement", {
-      p_organization_id: orgId, p_product_id: movement.product_id,
-      p_delta: qty, p_note: movement.note.trim() || null,
-    });
-    setBusy(false);
-    if (failure) { setError(failure.message); return; }
-    setMovement({ product_id: "", quantity: "1", note: "" });
-    setNotice("Movimentação registrada com sucesso."); await loadData();
   }
   async function addTable(event: FormEvent) {
     event.preventDefault();
@@ -200,7 +180,7 @@ function Gestao() {
   return (
     <div className="min-h-screen bg-[#f3f6f9] text-[#233448]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#b9c5d0] bg-[#e3eaf1] px-5 py-3">
-        <div><strong className="text-lg">TGuia Food</strong><span className="ml-3 text-sm">Gestão de Produtos e Geladeira</span></div>
+        <div><strong className="text-lg">TGuia Food</strong><span className="ml-3 text-sm">Gestão do Restaurante</span></div>
         <div className="flex items-center gap-3"><a href="/" className={btn}>Voltar às mesas</a>{userId && <button className={btn} onClick={logout}>Sair</button>}</div>
       </header>
       <main className="mx-auto max-w-6xl p-5">
@@ -238,7 +218,6 @@ function Gestao() {
             <nav className="mb-5 flex flex-wrap gap-2 border-b border-[#acbac8] bg-[#e2e2e2] p-2">
               <button className={btn + (tab === "produtos" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("produtos")}>Produtos</button>
               {([["complementos","Complementos"],["observacoes","Observações"],["categorias","Categorias"],["tipos","Tipos e Tamanhos"],["insumos","Insumos"]] as const).map(([id,label])=><button type="button" key={id} className={btn + (tab===id?" border-[#2278aa] bg-white text-[#1160a2]":"")} onClick={()=>setTab(id)}>{label}</button>)}
-              <button className={btn + (tab === "geladeira" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("geladeira")}>Estoque</button>
               <button className={btn + (tab === "mesas" ? " border-[#2278aa] bg-white text-[#1160a2]" : "")} onClick={() => setTab("mesas")}>Mesas e Categorias</button>
             </nav>
             {tab === "categorias" ? <section className="space-y-3 border border-[#c4d0da] bg-white p-4"><h2 className="text-lg font-bold">Categorias de produtos</h2><p className="text-xs text-slate-600">As categorias são compartilhadas com o cadastro real de produtos no Supabase.</p><form onSubmit={addCategory} className="flex flex-wrap gap-2"><input aria-label="Nome da categoria" maxLength={100} required className={field} value={categoryName} onChange={e=>setCategoryName(e.target.value)} placeholder="Ex.: Bebidas" /><button disabled={busy||!orgId} className={btn}>Cadastrar categoria</button></form><div className="flex flex-wrap gap-2">{categories.map(category=><span key={category.id} className="border bg-[#e9eff5] px-3 py-2">{category.name}</span>)}</div>{!categories.length&&<p>Nenhuma categoria cadastrada.</p>}</section>
@@ -261,17 +240,7 @@ function Gestao() {
                 <input className={field} aria-label="Buscar produtos" placeholder="Buscar por nome ou código" value={query} onChange={e => setQuery(e.target.value)} />
                 <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-[#e7edf3]"><tr><th className="p-2">Código</th><th className="p-2">Produto</th><th className="p-2">Preço</th><th className="p-2">Situação</th><th className="p-2">Ações</th></tr></thead><tbody>{visible.map(p => <tr className="border-b" key={p.id}><td className="p-2">{p.code || "—"}</td><td className="p-2">{p.name}</td><td className="p-2">{currency(Number(p.sale_price))}</td><td className="p-2">{p.active ? "Ativo" : "Inativo"}</td><td className="whitespace-nowrap p-2"><button className={btn} onClick={() => { setEditing(p.id); setForm({ code: p.code || "", name: p.name, sale_price: String(p.sale_price), category_id: p.category_id || "", active: p.active }); }}>Editar</button> <button disabled={busy} className={btn} onClick={() => void toggleProduct(p)}>{p.active ? "Desativar" : "Ativar"}</button></td></tr>)}</tbody></table>{visible.length === 0 && <p className="p-4 text-sm">Nenhum produto encontrado.</p>}</div>
               </section>
-            </div> : <div className="grid gap-5 lg:grid-cols-[350px_1fr]">
-              <form onSubmit={moveStock} className="space-y-3 border border-[#c4d0da] bg-white p-4">
-                <h2 className="font-bold">Movimentar estoque da geladeira</h2>
-                <p className="text-xs text-slate-600">Entrada: quantidade positiva. Retirada: quantidade negativa. O banco bloqueia estoque negativo.</p>
-                <label className="block text-sm">Produto<select required className={field} value={movement.product_id} onChange={e => setMovement({ ...movement, product_id: e.target.value })}><option value="">Selecione</option>{products.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-                <label className="block text-sm">Quantidade (+ entrada / - saída)<input className={field} type="number" step="1" value={movement.quantity} onChange={e => setMovement({ ...movement, quantity: e.target.value })} required /></label>
-                <label className="block text-sm">Observação<input className={field} value={movement.note} onChange={e => setMovement({ ...movement, note: e.target.value })} maxLength={250} /></label>
-                <button disabled={busy || !orgId} className={btn}>Registrar movimentação</button>
-              </form>
-              <section className="border border-[#c4d0da] bg-white p-4"><h2 className="mb-3 font-bold">Saldo atual na geladeira</h2><table className="w-full text-sm"><thead className="bg-[#e7edf3]"><tr><th className="p-2 text-left">Produto</th><th className="p-2 text-right">Unidades</th></tr></thead><tbody>{products.filter(p => p.active).map(p => <tr key={p.id} className="border-b"><td className="p-2">{p.name}</td><td className="p-2 text-right">{stocks.find(s => s.product_id === p.id)?.quantity ?? 0}</td></tr>)}</tbody></table><p className="mt-4 text-xs text-slate-500">O controle atual é manual. Integração física com sensores ou automação depende do modelo da geladeira e de um dispositivo compatível.</p></section>
-            </div>}
+            </div> : null}
           </>
         )}
       </main>
