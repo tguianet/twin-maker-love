@@ -32,6 +32,7 @@ function ProductsPDV(){
  const [categoryName,setCategoryName]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
  const [authenticated,setAuthenticated]=useState(false);
  const [stack,setStack]=useState<string[]>([]);
+ const [tablesVersion,setTablesVersion]=useState(0);
  const [maximized,setMaximized]=useState<string[]>([]);
  const [onlyCategoryMode,setOnlyCategoryMode]=useState(false);
  const [minimized,setMinimized]=useState<string[]>([]);
@@ -121,10 +122,10 @@ function ProductsPDV(){
      </div>
      <span className="text-center text-[10px] text-[#858585]">{group}</span>
     </section>)}
-    <div className="flex shrink-0 items-center border-l border-[#c9c9c9] px-3"><button type="button" onClick={()=>{setStack([]);setView(null);setMinimized([]);setMaximized([]);setError("");setNotice("");}} className="rounded border border-[#8fa3b4] bg-white px-4 py-3 text-xs font-bold text-[#245d87] hover:bg-[#e4f0fb]">Mostrar mesas</button></div>
+    <div className="flex shrink-0 items-center border-l border-[#c9c9c9] px-3"><button type="button" onClick={()=>{setStack([]);setView(null);setMinimized([]);setMaximized([]);setError("");setNotice("");}} className="rounded border border-[#8fa3b4] bg-white px-4 py-3 text-xs font-bold text-[#245d87] hover:bg-[#e4f0fb]">Mostrar mesas</button><button type="button" onClick={()=>setTablesVersion(v=>v+1)} className="ml-2 rounded border border-[#8fa3b4] bg-white px-3 py-3 text-xs font-semibold text-[#245d87] hover:bg-[#e4f0fb]">Atualizar mesas</button></div>
    </div>
   <div className="relative h-[calc(100dvh-140px)] min-h-[420px] flex-1 overflow-hidden bg-[#ededed]">
-   <iframe title="Mesas do restaurante ao fundo" src="/?embedded=1" className="absolute inset-0 h-full w-full border-0" />
+   <iframe key={tablesVersion} title="Mesas do restaurante ao fundo" src="/?embedded=1" className="absolute inset-0 h-full w-full border-0" />
    {stack.length>0&&<div className="pointer-events-none absolute inset-0 bg-[#14202e]/25" aria-hidden="true"/>}
    <div className="pointer-events-none absolute bottom-3 right-3 z-[15]"><a href="/" className="pointer-events-auto inline-flex border border-[#9aa6b2] bg-white px-3 py-2 text-xs font-semibold text-[#246092] shadow">Ver mesas na aba Principal</a></div>
    <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
