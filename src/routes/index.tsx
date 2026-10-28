@@ -168,6 +168,7 @@ function Index() {
   useEffect(() => {
     let active = true;
     let refreshLive: (() => Promise<void>) | null = null;
+    let refreshing = false;
     void import("../lib/supabase").then(async ({ supabase: browserClient }) => {
       if (active) setSupabase(browserClient);
       const supabase = browserClient;
@@ -193,7 +194,7 @@ function Index() {
       refreshLive = refresh;
       await refresh();
     }).catch(() => { if (active) { setLiveError("Não foi possível carregar as mesas online."); setLiveLoading(false); } });
-    const onFocus = () => { void refreshLive?.().catch(() => { if (active) setLiveError("Falha ao atualizar mesas."); }); };
+    const onFocus = () => { if (!refreshLive || refreshing || !active) return; refreshing = true; void refreshLive().catch(() => { if (active) setLiveError("Falha ao atualizar mesas."); }).finally(() => { refreshing = false; }); };
     const onVisibilityChange = () => { if (document.visibilityState === "visible") onFocus(); };
     const refreshTimer = window.setInterval(() => { if (document.visibilityState === "visible") onFocus(); }, 30000);
     window.addEventListener("focus", onFocus);
