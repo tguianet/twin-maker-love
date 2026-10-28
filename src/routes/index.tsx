@@ -251,9 +251,9 @@ function Index() {
     finally { setLiveBusy(false); }
   };
   const saveLiveCustomer = async () => {
-    if (!supabase || !liveOrg || !liveOrder || liveCustomerSaving || liveLoadFailed) return;
+    if (!supabase || !liveOrg || !liveOrder || liveCustomerSaving || liveLoadFailed) return false;
     const name=liveCustomerName.trim().slice(0,120);
-    if (name===liveCustomerSaved) return;
+    if (name===liveCustomerSaved) return true;
     setLiveCustomerSaving(true);
     try {
       const {data,error}=await supabase.from("orders").update({customer_name:name||null})
@@ -264,7 +264,8 @@ function Index() {
       setLiveCustomerSaved(name);
       setLiveOrders(prev=>prev.map(order=>order.table_id===selectedLiveTable?.id?{...order,customer_name:name||null}:order));
       setLiveNotice("Nome salvo na comanda.");
-    } catch(e) { setLiveNotice(e instanceof Error?e.message:"Falha ao salvar o nome."); }
+      return true;
+    } catch(e) { setLiveNotice(e instanceof Error?e.message:"Falha ao salvar o nome."); return false; }
     finally { setLiveCustomerSaving(false); }
   };
   // Persist customer changes automatically after typing stops; skip new/blocked orders.
@@ -277,7 +278,12 @@ function Index() {
 
   // Flush a pending customer-name edit before closing so it is never lost.
   const closeLiveTable = async () => {
-    if (liveOrder && !liveLoadFailed && liveCustomerName.trim().slice(0,120) !== liveCustomerSaved) await saveLiveCustomer();
+    if (liveCustomerSaving) { setLiveNotice("Salvamento em andamento. Tente fechar novamente."); return; }
+    if (liveLoadFailed) { setLiveNotice("Não foi possível confirmar os dados da comanda. Atualize antes de fechar."); return; }
+    if (liveOrder && liveCustomerName.trim().slice(0,120) !== liveCustomerSaved) {
+      const saved = await saveLiveCustomer();
+      if (!saved) return;
+    }
     setSelectedLiveTable(null);
   };
   useEffect(() => {
