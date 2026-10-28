@@ -43,10 +43,11 @@ Aplicar **depois** de todas as anteriores, no banco exclusivo do TGuia Food (SQL
 
 O que muda no banco:
 - `audit_log`: registro somente-inserção (nem o administrador apaga ou altera) de pedidos, itens, pagamentos, caixa, produtos, fiado e membros. Só owner/admin leem.
-- Itens não são mais apagados: `cancel_order_item(item, motivo, pin)` marca o item como cancelado com motivo, quem cancelou e quem autorizou. Garçom e caixa precisam do PIN de um owner/admin **diferente** deles. 5 PINs errados em 10 minutos bloqueiam novas tentativas.
+- Itens não são mais apagados: `cancel_order_item(item, motivo, pin)` marca o item como cancelado com motivo, quem cancelou e quem autorizou.
+- **PIN de supervisor desligado por padrão** (migration `20261028100000_supervisor_pin_optional.sql`, fase de desenvolvimento): o cancelamento só exige o motivo. Para exigir PIN em produção: `update public.organizations set require_supervisor_pin = true where id = '<id>';` — a partir daí garçom e caixa precisam do PIN de um owner/admin **diferente** deles, 5 PINs errados em 10 minutos bloqueiam, e o painel "Meu PIN de autorização" aparece na Gestão.
 - `set_my_pin` / `has_my_pin`: PIN pessoal de 4 a 6 números (bcrypt), sem PINs óbvios e sem repetir o PIN de outra pessoa.
 - Escrita direta bloqueada em `order_items`, `order_payments` e `cash_sessions`, e DELETE bloqueado em `orders`: tudo passa pelas funções do servidor.
 - `close_cash_session(caixa, contado, justificativa)`: fechamento às cegas. O esperado em dinheiro é calculado no servidor; diferença acima de R$ 10,00 exige justificativa; contado, esperado e diferença ficam gravados.
 - `close_order_manual` e a trava de encerramento passam a ignorar itens cancelados.
 
-Teste local: `supabase/tests/audit_controls.test.sql` (instruções no cabeçalho). Depois de aplicar no banco real, testar com um usuário garçom: cancelar item sem PIN (deve pedir PIN), com PIN do dono (deve cancelar) e fechar o caixa informando o valor contado.
+Teste local: `supabase/tests/audit_controls.test.sql` (instruções no cabeçalho). Depois de aplicar no banco real, testar: cancelar um item informando o motivo e fechar o caixa informando o valor contado.

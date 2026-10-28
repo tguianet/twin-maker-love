@@ -17,6 +17,8 @@ insert into public.organization_members(organization_id,user_id,role) values
  ('10000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000005','owner');
 insert into public.restaurant_tables(id,organization_id,number) values ('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001',1);
 insert into public.products(id,organization_id,name,sale_price) values ('30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','Heineken',10);
+-- Os cenários abaixo testam o PIN ligado; o cenário T18 testa o padrão (desligado).
+update public.organizations set require_supervisor_pin = true;
 create or replace function pg_temp.as_user(u text) returns void language plpgsql as $$ begin perform set_config('request.jwt.claim.sub',u,false); end $$;
 
 \echo '== garcom abre comanda e lanca 3 itens'
@@ -79,6 +81,14 @@ select pg_temp.as_user('00000000-0000-0000-0000-000000000004'); select count(*) 
 \echo '== T16 dono ve o log'
 select pg_temp.as_user('00000000-0000-0000-0000-000000000001');
 select action, count(*), max(reason) motivo, bool_or(authorized_by is not null) autorizado from public.audit_log group by action order by action;
+\echo '== T18 PIN desligado (padrao): garcom cancela so com motivo'
+reset role; update public.organizations set require_supervisor_pin = false;
+set role authenticated; select pg_temp.as_user('00000000-0000-0000-0000-000000000004');
+insert into public.orders(id,organization_id,table_id,created_by) values ('40000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000004');
+select public.add_order_product('40000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001',1) is not null as add;
+select public.cancel_order_item((select id from public.order_items where order_id='40000000-0000-0000-0000-000000000002'),'lancado errado',null);
+select cancel_authorized_by::text as responsavel from public.order_items where order_id='40000000-0000-0000-0000-000000000002';
+select public.cancel_order_item((select id from public.order_items where order_id='40000000-0000-0000-0000-000000000002'),'',null) ->> 'error' as sem_motivo;
 reset role;
 \echo '== T17 nem o superusuario altera o log'
 update public.audit_log set reason='x'; delete from public.audit_log; truncate public.audit_log;
