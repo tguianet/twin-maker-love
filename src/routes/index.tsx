@@ -198,9 +198,10 @@ function Index() {
     const onFocus = () => { if (!refreshLive || refreshing || !active || document.visibilityState !== "visible") return; refreshing = true; void refreshLive().catch(() => { if (active) setLiveError("Falha ao atualizar mesas."); }).finally(() => { refreshing = false; }); };
     const onVisibilityChange = () => { if (document.visibilityState === "visible") onFocus(); };
     const refreshTimer = window.setInterval(() => { if (document.visibilityState === "visible") onFocus(); }, 30000);
+    window.addEventListener("tguia:refresh-tables", onFocus);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => { active = false; window.clearInterval(refreshTimer); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibilityChange); };
+    return () => { active = false; window.clearInterval(refreshTimer); window.removeEventListener("focus", onFocus); window.removeEventListener("tguia:refresh-tables", onFocus); document.removeEventListener("visibilitychange", onVisibilityChange); };
   }, []);
 
 
@@ -433,7 +434,7 @@ function Index() {
           <button className="flex items-center space-x-1 rounded p-1 text-sm font-semibold hover:bg-app-hover"><span>Juntar Pedidos</span></button>
         </div>
         <div className="flex items-center space-x-6">
-          <button className="flex items-center space-x-1 rounded p-1 text-sm font-semibold hover:bg-app-hover"><span>Atualizar</span></button>
+          <button type="button" onClick={() => window.dispatchEvent(new Event("tguia:refresh-tables"))} className="flex items-center space-x-1 rounded p-1 text-sm font-semibold hover:bg-app-hover"><span>Atualizar</span></button>
           <button className="flex items-center space-x-1 rounded p-1 text-sm font-semibold hover:bg-app-hover"><span>Iniciar Pedido Balcão (F6)</span></button>
         </div>
       </div>
