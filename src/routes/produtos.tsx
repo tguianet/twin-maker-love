@@ -40,12 +40,24 @@ function ProductsPDV(){
  const openPanel=(id:string)=>{setView(id as typeof view);setStack(previous=>[...previous.filter(x=>x!==id),id]);setMinimized(previous=>previous.filter(x=>x!==id));setError("");setNotice("");};
 
  const load=async(id:string)=>{
-  const [p,c]=await Promise.all([
-   supabase.from("products").select("id,code,name,sale_price,active,category_id").eq("organization_id",id).order("name"),
-   supabase.from("product_categories").select("id,name").eq("organization_id",id).order("name")
-  ]);
-  if(p.error||c.error)throw new Error(p.error?.message||c.error?.message||"Erro ao carregar produtos.");
-  setProducts((p.data||[]) as Product[]);setCategories((c.data||[]) as Category[]);
+  const pageSize=500;
+  const allProducts:Product[]=[];
+  const allCategories:Category[]=[];
+  for(let offset=0;;offset+=pageSize){
+   const {data,error}=await supabase.from("products").select("id,code,name,sale_price,active,category_id").eq("organization_id",id).order("name").order("id").range(offset,offset+pageSize-1);
+   if(error)throw new Error(error.message);
+   const page=(data||[]) as Product[];
+   allProducts.push(...page);
+   if(page.length<pageSize)break;
+  }
+  for(let offset=0;;offset+=pageSize){
+   const {data,error}=await supabase.from("product_categories").select("id,name").eq("organization_id",id).order("name").order("id").range(offset,offset+pageSize-1);
+   if(error)throw new Error(error.message);
+   const page=(data||[]) as Category[];
+   allCategories.push(...page);
+   if(page.length<pageSize)break;
+  }
+  setProducts(allProducts);setCategories(allCategories);
  };
  useEffect(()=>{let mounted=true;(async()=>{
   try{
