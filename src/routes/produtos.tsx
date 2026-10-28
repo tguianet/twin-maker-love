@@ -20,7 +20,7 @@ function ProductsPDV(){
  const [productCategory,setProductCategory]=useState("all");
  const [query,setQuery]=useState("");const [form,setForm]=useState(blank);const [edit,setEdit]=useState<string|null>(null);
  const [selectedProductId,setSelectedProductId]=useState<string|null>(null);
- const selectProduct=(p:Product)=>{setSelectedProductId(p.id);setEdit(p.id);setForm({code:p.code||"",name:p.name,sale_price:String(p.sale_price),category_id:p.category_id||"",active:p.active});};
+ const selectProduct=(p:Product)=>{setError("");setNotice("");setSelectedProductId(p.id);setEdit(p.id);setForm({code:p.code||"",name:p.name,sale_price:String(p.sale_price),category_id:p.category_id||"",active:p.active});};
  const duplicateProduct=(p:Product)=>{setSelectedProductId(null);setEdit(null);setForm({code:"",name:p.name+" (cópia)",sale_price:String(p.sale_price),category_id:p.category_id||"",active:p.active});setError("");setNotice("Cópia preparada. Revise e clique em Cadastrar produto para salvar.");};
  const [bulkCategory,setBulkCategory]=useState("all");
  const [bulkQuery,setBulkQuery]=useState("");
@@ -53,8 +53,8 @@ function ProductsPDV(){
    if(!a.user)throw Error("Faça login na Gestão para acessar os produtos reais.");
    const {data:m,error:me}=await supabase.from("organization_members").select("organization_id").eq("user_id",a.user.id).eq("active",true).limit(1);
    if(me)throw me;if(!m?.[0])throw Error("Usuário sem restaurante vinculado.");
-   if(!mounted)return;setAuthenticated(true);setOrg(m[0].organization_id);await load(m[0].organization_id);
-  }catch(e){if(mounted)setError(e instanceof Error?e.message:"Não foi possível acessar os produtos.");}
+   if(!mounted)return;await load(m[0].organization_id);if(!mounted)return;setOrg(m[0].organization_id);setAuthenticated(true);
+  }catch(e){if(mounted){setAuthenticated(false);setOrg("");setError(e instanceof Error?e.message:"Não foi possível acessar os produtos.");}}
  })();return()=>{mounted=false};},[]);
  const visible=useMemo(()=>products.filter(p=>(p.name+" "+(p.code||"")).toLocaleLowerCase("pt-BR").includes(query.toLocaleLowerCase("pt-BR"))&&(productStatus==="all"||(productStatus==="active"?p.active:!p.active))&&(productCategory==="all"||p.category_id===productCategory)),[products,query,productStatus,productCategory]);
  const exportProducts=()=>{if(!authenticated||!org)return;const rows:(string|number)[][]=[["Código","Produto","Categoria","Preço de venda","Situação"],...visible.map(p=>[p.code||"",p.name,categories.find(cat=>cat.id===p.category_id)?.name||"",Number(p.sale_price).toFixed(2).replace(".",","),p.active?"Ativo":"Inativo"])];downloadCsv("tguia-produtos.csv",rows);};
