@@ -121,10 +121,11 @@ function ProductsPDV(){
      </div>
      <span className="text-center text-[10px] text-[#858585]">{group}</span>
     </section>)}
+    <div className="flex shrink-0 items-center border-l border-[#c9c9c9] px-3"><button type="button" onClick={()=>{setStack([]);setView(null);setMinimized([]);setMaximized([]);setError("");setNotice("");}} className="rounded border border-[#8fa3b4] bg-white px-4 py-3 text-xs font-bold text-[#245d87] hover:bg-[#e4f0fb]">Mostrar mesas</button></div>
    </div>
   <div className="relative h-[calc(100dvh-140px)] min-h-[420px] flex-1 overflow-hidden bg-[#ededed]">
    <iframe title="Mesas do restaurante ao fundo" src="/?embedded=1" className="absolute inset-0 h-full w-full border-0" />
-   {stack.length>0&&<div className="absolute inset-0 bg-[#14202e]/50" aria-hidden="true"/>}
+   {stack.length>0&&<div className="pointer-events-none absolute inset-0 bg-[#14202e]/25" aria-hidden="true"/>}
    <div className="pointer-events-none absolute bottom-3 right-3 z-[15]"><a href="/" className="pointer-events-auto inline-flex border border-[#9aa6b2] bg-white px-3 py-2 text-xs font-semibold text-[#246092] shadow">Ver mesas na aba Principal</a></div>
    <div className="relative flex flex-col items-center gap-3 p-4 pointer-events-none">
    {stack.map((panel,i)=><section key={panel} style={{position:"absolute",top:maximized.includes(panel)?"8px":`${Math.min(26+i*28,120)}px`,left:maximized.includes(panel)?"1%":`calc(50% - min(530px, 46vw) + ${Math.min(i*12,48)}px)`,zIndex:20+i,width:maximized.includes(panel)?"98%":"min(1060px,92vw)",height:minimized.includes(panel)?"34px":maximized.includes(panel)?"calc(100vh - 165px)":"min(690px,calc(100vh - 190px))"}} className={"pointer-events-auto flex flex-col overflow-hidden border bg-[#f7f7f7] text-[12px] shadow-[0_16px_45px_rgba(0,0,0,0.4)] "+(i===stack.length-1?"border-[#4c8bbb] ring-1 ring-[#4c8bbb]":"border-[#777]")}>
