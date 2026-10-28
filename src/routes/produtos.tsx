@@ -32,10 +32,11 @@ function ProductsPDV(){
  const [categoryName,setCategoryName]=useState("");const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [notice,setNotice]=useState("");
  const [authenticated,setAuthenticated]=useState(false);
  const [stack,setStack]=useState<string[]>([]);
- useEffect(()=>{const handler=(event:KeyboardEvent)=>{if(event.key!=="Escape"||!stack.length)return;const active=event.target;if(active instanceof HTMLElement&&(active.matches("input,textarea,select,[contenteditable=true]")||active.closest("[role=dialog]")))return;event.preventDefault();const closed=stack[stack.length-1];const next=stack.slice(0,-1);setStack(next);setView((next[next.length-1]||null) as typeof view);setMinimized(current=>current.filter(x=>x!==closed));setMaximized(current=>current.filter(x=>x!==closed));setError("");setNotice("");};window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[stack]);
  const [maximized,setMaximized]=useState<string[]>([]);
  const [onlyCategoryMode,setOnlyCategoryMode]=useState(false);
  const [minimized,setMinimized]=useState<string[]>([]);
+ useEffect(()=>{const handler=(event:KeyboardEvent)=>{if(event.key!=="Escape"||!stack.length)return;const active=event.target;if(active instanceof HTMLElement&&(active.matches("input,textarea,select,[contenteditable=true]")||active.closest("[role=dialog]")))return;event.preventDefault();const closed=stack[stack.length-1];const next=stack.slice(0,-1);setStack(next);setView((next[next.length-1]||null) as typeof view);setMinimized(current=>current.filter(x=>x!==closed));setMaximized(current=>current.filter(x=>x!==closed));setError("");setNotice("");};window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);},[stack]);
+
  const openPanel=(id:string)=>{if(id==="products")setOnlyCategoryMode(false);setView(id as typeof view);setStack(previous=>[...previous.filter(x=>x!==id),id]);setMinimized(previous=>previous.filter(x=>x!==id));setError("");setNotice("");};
 
  const load=async(id:string)=>{
