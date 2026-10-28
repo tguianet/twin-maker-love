@@ -62,8 +62,8 @@ function ProductsPDV(){
  };
  useEffect(()=>{let mounted=true;(async()=>{
   try{
-   const {data:a,error:e}=await supabase.auth.getUser();if(e)throw e;
-   if(!a.user)throw Error("Faça login na Gestão para acessar os produtos reais.");
+   const {data:a,error:e}=await (await import("../lib/supabase")).getAppUser();if(e)throw e;
+   if(!a.user)throw Error("Não foi possível entrar no sistema.");
    const {data:m,error:me}=await supabase.from("organization_members").select("organization_id").eq("user_id",a.user.id).eq("active",true).limit(1);
    if(me)throw me;if(!m?.[0])throw Error("Usuário sem restaurante vinculado.");
    if(!mounted)return;await load(m[0].organization_id);if(!mounted)return;setOrg(m[0].organization_id);setAuthenticated(true);

@@ -58,9 +58,9 @@ function SharedOrdersPage() {
         if (cancelled) return;
         setClient(supabase);
         setRpcAvailable((supabase as unknown as { supabaseUrl: string }).supabaseUrl === "https://eqelwfhiizigduybtkxh.supabase.co");
-        const { data: userResult, error: userError } = await supabase.auth.getUser();
+        const { data: userResult, error: userError } = await (await import("../lib/supabase")).getAppUser();
         if (userError) throw userError;
-        if (!userResult.user) { setError("Entre no sistema pela Gestão para consultar as comandas compartilhadas."); return; }
+        if (!userResult.user) { setError("Não foi possível entrar no sistema."); return; }
         const { data, error: memberError } = await supabase.from("organization_members")
           .select("organization_id, organizations(name)").eq("user_id", userResult.user.id).eq("active", true);
         if (memberError) throw memberError;
@@ -131,7 +131,7 @@ function SharedOrdersPage() {
     }
     setSaving(true); setError(""); setMessage("");
     try {
-      const { data: session, error: authError } = await client.auth.getUser();
+      const { data: session, error: authError } = await (await import("../lib/supabase")).getAppUser();
       if (authError) throw authError;
       if (!session.user) throw new Error("Sua sessão expirou. Entre novamente.");
       const { data, error: createError } = await client.from("orders").insert({

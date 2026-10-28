@@ -51,3 +51,18 @@ O que muda no banco:
 - `close_order_manual` e a trava de encerramento passam a ignorar itens cancelados.
 
 Teste local: `supabase/tests/audit_controls.test.sql` (instruções no cabeçalho). Depois de aplicar no banco real, testar: cancelar um item informando o motivo e fechar o caixa informando o valor contado.
+
+## Sem tela de login durante o desenvolvimento (migration `20261028110000_dev_open_access.sql`)
+O site entra sozinho: se não houver sessão, faz login anônimo no Supabase e chama `join_dev_organization()`, que vincula esse usuário como owner ao restaurante com `dev_open_access = true`. Todas as regras de segurança continuam valendo.
+
+Para funcionar:
+1. Rodar a migration no SQL Editor.
+2. Supabase → Authentication → Sign In / Providers → ligar **Allow anonymous sign-ins**.
+
+Antes de usar no restaurante de verdade:
+```sql
+update public.organizations set dev_open_access = false;
+update public.organization_members set active = false
+ where user_id in (select id from auth.users where is_anonymous);
+```
+e desligar "Allow anonymous sign-ins".

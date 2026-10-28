@@ -95,7 +95,7 @@ export function ProductLocatorModal({ open, onClose, onAdd }: ProductLocatorModa
     const load = async () => {
       try {
         const { supabase } = await import("../lib/supabase");
-        const { data: auth } = await supabase.auth.getUser();
+        const { data: auth } = await (await import("../lib/supabase")).getAppUser();
         if (!auth.user) return;
         const { data: memberships, error: membershipError } = await supabase.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("active", true).limit(1);
         if (membershipError) throw membershipError;
