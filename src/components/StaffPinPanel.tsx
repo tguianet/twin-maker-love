@@ -11,6 +11,15 @@ export function StaffPinPanel({ client, orgId }: { client: SupabaseClient; orgId
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [required, setRequired] = useState(false);
+
+  // Only shown when the restaurant turns the supervisor PIN on (off during development).
+  useEffect(() => {
+    let active = true;
+    void client.from("organizations").select("require_supervisor_pin").eq("id", orgId).maybeSingle()
+      .then(({ data }) => { if (active) setRequired(Boolean(data?.require_supervisor_pin)); });
+    return () => { active = false; };
+  }, [client, orgId]);
 
   useEffect(() => {
     let active = true;
@@ -34,6 +43,7 @@ export function StaffPinPanel({ client, orgId }: { client: SupabaseClient; orgId
     setMessage({ ok: true, text: "PIN salvo. Use-o para autorizar cancelamentos da equipe." });
   }
 
+  if (!required) return null;
   return (
     <section className="mb-5 border border-[#c4d0da] bg-white p-4">
       <h2 className="text-base font-bold">Meu PIN de autorização</h2>
