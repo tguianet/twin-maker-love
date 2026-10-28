@@ -168,6 +168,11 @@ revoke delete on public.orders from anon, authenticated;
 -- ---------------------------------------------------------------------------
 -- 3. PIN de autorização (supervisor)
 -- ---------------------------------------------------------------------------
+-- Desligado por padrão enquanto o sistema está em desenvolvimento: o cancelamento
+-- continua exigindo motivo e fica no log, mas sem pedir PIN. Para exigir o PIN em
+-- produção:  update public.organizations set require_supervisor_pin = true where id = '<id>';
+alter table public.organizations add column if not exists require_supervisor_pin boolean not null default false;
+
 create table if not exists public.staff_pins (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -281,7 +286,9 @@ begin
     return jsonb_build_object('ok', false, 'error', 'Comanda já tem pagamento registrado');
   end if;
 
-  if v_role in ('owner', 'admin') then
+  if v_role in ('owner', 'admin')
+     or not coalesce((select o.require_supervisor_pin from public.organizations o where o.id = v_order.organization_id), false) then
+    -- Gerente cancela sem PIN; com o PIN desligado, quem cancela fica como responsável.
     v_authorizer := auth.uid();
   else
     select count(*) into v_failures from public.audit_log

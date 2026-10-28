@@ -9,8 +9,8 @@ type Item = { id: string; product_name: string; quantity: number; unit_price: nu
 
 /**
  * Cancela um item da comanda pelo servidor (cancel_order_item). O item nunca é apagado:
- * fica registrado com motivo, quem cancelou e quem autorizou. Pedidos da equipe exigem o
- * PIN de um gerente/administrador diferente de quem está cancelando.
+ * fica registrado com motivo, quem cancelou e quem autorizou. O campo de PIN só aparece
+ * quando o restaurante liga a exigência (organizations.require_supervisor_pin).
  */
 export function CancelItemModal({ client, item, onClose, onCancelled }: {
   client: SupabaseClient;
@@ -69,10 +69,10 @@ export function CancelItemModal({ client, item, onClose, onCancelled }: {
         <label className="block">Detalhe (opcional)
           <input className={field} maxLength={200} value={detail} onChange={e => setDetail(e.target.value)} placeholder="Ex.: cliente trocou por outro chope" />
         </label>
-        <label className="block">PIN do supervisor {needsPin ? <span className="text-[#b91c1c]">(obrigatório)</span> : <span className="text-gray-500">(garçom e caixa precisam)</span>}
+        {needsPin && <label className="block">PIN do supervisor <span className="text-[#b91c1c]">(obrigatório)</span>
           <input ref={pinRef} className={field + " tracking-[0.4em]"} type="password" inputMode="numeric" autoComplete="off" maxLength={6} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, ""))} />
-        </label>
-        <p className="text-[11px] text-gray-500">O item não é apagado: fica no histórico com o motivo, quem cancelou e quem autorizou.</p>
+        </label>}
+        <p className="text-[11px] text-gray-500">O item não é apagado: fica no histórico com o motivo e quem cancelou.</p>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" disabled={busy} onClick={onClose} className="border border-[#b8b8b8] bg-[#f4f4f4] px-3 py-2 hover:bg-[#e8e8e8] disabled:opacity-40">Voltar</button>
