@@ -194,8 +194,11 @@ function Index() {
       await refresh();
     }).catch(() => { if (active) { setLiveError("Não foi possível carregar as mesas online."); setLiveLoading(false); } });
     const onFocus = () => { void refreshLive?.().catch(() => { if (active) setLiveError("Falha ao atualizar mesas."); }); };
+    const onVisibilityChange = () => { if (document.visibilityState === "visible") onFocus(); };
+    const refreshTimer = window.setInterval(() => { if (document.visibilityState === "visible") onFocus(); }, 30000);
     window.addEventListener("focus", onFocus);
-    return () => { active = false; window.removeEventListener("focus", onFocus); };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => { active = false; window.clearInterval(refreshTimer); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibilityChange); };
   }, []);
 
 
