@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
-type Session = { id:string; opened_at:string; opening_balance:number; opening_note:string|null; closed_at:string|null };
+type Session = { id:string; opened_at:string; opening_balance:number; opening_note:string|null; closed_at:string|null; counted_cash?:number|null; expected_cash?:number|null; cash_difference?:number|null; closing_note?:string|null };
+type CloseResult = { ok?:boolean; error?:string; needs_note?:boolean; counted?:number; expected?:number; difference?:number };
 type Movement = { id:string; created_at:string; description:string; direction:"in"|"out"; method:string; amount:number };
 const fmt = (n:number) => new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
 const field="w-full border border-[#b5b5b5] bg-white px-2 py-1.5 text-xs";
@@ -19,8 +20,9 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
  const [error,setError]=useState("");const [notice,setNotice]=useState("");
  const [showClosed,setShowClosed]=useState(false);
  const [pastSession,setPastSession]=useState<Session|null>(null);
+ const [closeOpen,setCloseOpen]=useState(false);const [counted,setCounted]=useState("");const [closeNote,setCloseNote]=useState("");const [noteRequired,setNoteRequired]=useState(false);const [closeError,setCloseError]=useState("");
  const load=async (organization:string) => {
-  const {data:sessions,error:se}=await supabase.from("cash_sessions").select("id,opened_at,opening_balance,opening_note,closed_at").eq("organization_id",organization).order("opened_at",{ascending:false}).limit(30);
+  const {data:sessions,error:se}=await supabase.from("cash_sessions").select("id,opened_at,opening_balance,opening_note,closed_at,counted_cash,expected_cash,cash_difference,closing_note").eq("organization_id",organization).order("opened_at",{ascending:false}).limit(30);
   if(se)throw se;
   const active=(sessions||[]).find(x=>!x.closed_at)||null;
   setSession(active as Session|null);
@@ -65,13 +67,27 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
   const {error:e}=await supabase.from("cash_movements").insert({session_id:session.id,organization_id:org,created_by:auth.user.id,description:description.trim(),direction,method,amount:value});
   if(e)throw e;setDescription("");setAmount("");setAddOpen(false);setNotice("Movimentação registrada.");
  });
- const close=()=>run(async()=>{
-  if(!session)return;
-  if(!window.confirm("Confirma o fechamento deste caixa? Não será possível adicionar novos lançamentos a este turno."))return;
-  const {data:auth}=await supabase.auth.getUser();if(!auth.user)throw Error("Sessão expirada.");
-  const {data, error:e}=await supabase.from("cash_sessions").update({closed_at:new Date().toISOString(),closed_by:auth.user.id}).eq("id",session.id).is("closed_at",null).select("id").maybeSingle();
-  if(e)throw e;if(!data)throw Error("Este caixa já foi fechado em outro terminal. Atualize os dados.");setNotice("Caixa fechado.");
- });
+ const startClose=()=>{setCounted("");setCloseNote("");setNoteRequired(false);setCloseError("");setCloseOpen(true);};
+ // Blind close: the operator reports the counted cash without seeing the expected balance.
+ // The server computes the expected value, stores both and only then reveals the difference.
+ const close=async()=>{
+  if(!session||busy)return;
+  const value=Number(counted.replace(/\./g,"").replace(",","."));
+  if(!counted.trim()||!Number.isFinite(value)||value<0){setCloseError("Informe quanto há em dinheiro na gaveta.");return;}
+  if(noteRequired&&!closeNote.trim()){setCloseError("Informe a justificativa da diferença.");return;}
+  setBusy(true);setCloseError("");setError("");setNotice("");
+  try{
+   const {data,error:e}=await supabase.rpc("close_cash_session",{p_session_id:session.id,p_counted_cash:value,p_note:closeNote.trim()||null});
+   if(e)throw e;
+   const result=(data||{}) as CloseResult;
+   if(!result.ok){if(result.needs_note)setNoteRequired(true);setCloseError(result.error||"Caixa não fechado.");return;}
+   setCloseOpen(false);
+   const diff=Number(result.difference||0);
+   setNotice("Caixa fechado. Contado "+fmt(Number(result.counted||0))+" · esperado "+fmt(Number(result.expected||0))+" · "+(Math.abs(diff)<0.005?"sem diferença.":(diff<0?"FALTA de ":"SOBRA de ")+fmt(Math.abs(diff))+"."));
+   if(org)await load(org);
+  }catch(e){setCloseError(e instanceof Error?e.message:"Falha ao fechar o caixa.");}
+  finally{setBusy(false);}
+ };
  const historicalView=showClosed && !!pastSession;
  const displayedSession=historicalView?pastSession:session;
  const cashIn=rows.filter(x=>x.direction==="in").reduce((a,x)=>a+Number(x.amount),0);
@@ -140,14 +156,17 @@ export function CashRegisterModal({onClose}:{onClose:()=>void}) {
        <div className="flex justify-between font-bold"><span>(+) SALDO INICIAL:</span><span>{fmt(Number(displayedSession?.opening_balance||0))}</span></div>
        <div><b>(+) ENTRADAS NO CAIXA</b>{cashIn===0&&orderReceiptsTotal===0?<p className="mt-1 text-[11px] text-[#8e8e8e]">Não há registros de entrada</p>:<><div className="mt-2 flex justify-between"><span>Lançamentos</span><b>{fmt(cashIn)}</b></div><div className="mt-1 flex justify-between"><span>Comandas recebidas</span><b>{fmt(orderReceiptsTotal)}</b></div><div className="mt-1 flex justify-between font-bold"><span>Total entradas</span><span>{fmt(cashIn+orderReceiptsTotal)}</span></div></>}</div>
        <div className="pt-4"><b>(-) SAÍDAS DO CAIXA</b>{cashOut===0?<p className="mt-1 text-[11px] text-[#8e8e8e]">Não há registros de saída</p>:<p className="mt-2 text-right font-bold">{fmt(cashOut)}</p>}</div>
-       <div className="space-y-2 pt-6"><b>(=) SALDO FINAL</b><div className="flex justify-between"><span>Somente Dinheiro:</span><b>{fmt(cashBalance+orderCash)}</b></div><div className="flex justify-between"><b>TUDO:</b><b>{fmt(Number(displayedSession?.opening_balance||0)+cashIn-cashOut+orderReceiptsTotal)}</b></div></div>
+       {historicalView||!displayedSession?<div className="space-y-2 pt-6"><b>(=) SALDO FINAL</b><div className="flex justify-between"><span>Somente Dinheiro:</span><b>{fmt(cashBalance+orderCash)}</b></div><div className="flex justify-between"><b>TUDO:</b><b>{fmt(Number(displayedSession?.opening_balance||0)+cashIn-cashOut+orderReceiptsTotal)}</b></div>
+        {displayedSession?.expected_cash!=null&&<div className="mt-2 space-y-1 border-t pt-2"><b>CONFERÊNCIA DO DINHEIRO</b><div className="flex justify-between"><span>Contado na gaveta:</span><b>{fmt(Number(displayedSession.counted_cash))}</b></div><div className="flex justify-between"><span>Esperado pelo sistema:</span><b>{fmt(Number(displayedSession.expected_cash))}</b></div><div className={"flex justify-between font-bold "+(Math.abs(Number(displayedSession.cash_difference))<0.005?"text-[#388e3c]":"text-[#b91c1c]")}><span>{Number(displayedSession.cash_difference)<0?"Falta:":Number(displayedSession.cash_difference)>0?"Sobra:":"Diferença:"}</span><span>{fmt(Math.abs(Number(displayedSession.cash_difference)))}</span></div>{displayedSession.closing_note&&<p className="text-[11px] text-neutral-600">Justificativa: {displayedSession.closing_note}</p>}</div>}
+       </div>:<div className="space-y-2 pt-6"><b>(=) SALDO FINAL</b><p className="text-[11px] text-neutral-600">Conferência às cegas: o saldo esperado só aparece depois que o dinheiro da gaveta for contado e o caixa for fechado.</p></div>}
        <p className="border-t pt-2 text-[10px] text-neutral-500">Pagamentos de comandas entram pelo registro real do Supabase. Evite lançá-los novamente como entrada manual.</p>
       </div>
      </div>
-     <div className="flex items-center justify-between gap-2 border-t border-[#bfbfbf] bg-[#f9f9f9] p-2 text-[12px]"><button type="button" onClick={()=>window.print()} className="px-2 hover:text-black">▤ Imprimir</button><button type="button" disabled={!session||busy||showClosed} onClick={close} className="rounded-sm border border-[#b5b5b5] bg-white px-3 py-1.5 font-medium shadow-sm hover:border-neutral-500 disabled:opacity-40">✓ Fechar Caixa</button></div>
+     <div className="flex items-center justify-between gap-2 border-t border-[#bfbfbf] bg-[#f9f9f9] p-2 text-[12px]"><button type="button" onClick={()=>window.print()} className="px-2 hover:text-black">▤ Imprimir</button><button type="button" disabled={!session||busy||showClosed} onClick={startClose} className="rounded-sm border border-[#b5b5b5] bg-white px-3 py-1.5 font-medium shadow-sm hover:border-neutral-500 disabled:opacity-40">✓ Fechar Caixa</button></div>
     </aside>
    </div>
    {(error||notice)&&<p role={error?"alert":"status"} className={"border-t px-4 py-2 text-xs "+(error?"text-red-700":"text-green-700")}>{error||notice}</p>}
+   {closeOpen&&<div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4"><form onSubmit={e=>{e.preventDefault();void close();}} className="w-[400px] max-w-full space-y-3 border bg-white p-5 shadow-xl"><h3 className="text-base font-bold">Fechar caixa</h3><p className="text-xs text-neutral-600">Conte o dinheiro da gaveta e informe o total. O valor esperado pelo sistema só é mostrado depois do fechamento.</p><label className="block text-xs">Dinheiro contado na gaveta (R$)<input autoFocus inputMode="decimal" className={field+" text-right text-base"} placeholder="0,00" value={counted} onChange={e=>setCounted(e.target.value)}/></label>{noteRequired&&<label className="block text-xs text-[#b91c1c]">Justificativa da diferença (obrigatória)<textarea className={field} rows={3} maxLength={300} value={closeNote} onChange={e=>setCloseNote(e.target.value)}/></label>}{closeError&&<p role="alert" className="text-xs text-red-700">{closeError}</p>}<div className="flex justify-end gap-2"><button type="button" className={button} disabled={busy} onClick={()=>setCloseOpen(false)}>Voltar</button><button disabled={busy} className={button+" font-semibold"}>{busy?"Fechando...":"Confirmar fechamento"}</button></div></form></div>}
    {addOpen&&<div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4"><form onSubmit={e=>{e.preventDefault();void add();}} className="w-[380px] max-w-full space-y-3 border bg-white p-5 shadow-xl"><h3 className="text-base font-bold">Novo lançamento</h3><select aria-label="Tipo de lançamento" className={field} value={direction} onChange={e=>setDirection(e.target.value as "in"|"out")}><option value="in">Entrada</option><option value="out">Saída</option></select><input className={field} placeholder="Descrição" required maxLength={250} value={description} onChange={e=>setDescription(e.target.value)}/><input className={field} placeholder="Valor em R$" required value={amount} onChange={e=>setAmount(e.target.value)}/><select aria-label="Forma de pagamento" className={field} value={method} onChange={e=>setMethod(e.target.value)}>{Object.entries(methods).map(([key,value])=><option key={key} value={key}>{value}</option>)}</select><div className="flex justify-end gap-2"><button type="button" className={button} onClick={()=>setAddOpen(false)}>Cancelar</button><button disabled={busy} className={button}>Salvar</button></div></form></div>}
   </section>
  </div>;
