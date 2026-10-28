@@ -10,6 +10,7 @@ const field="w-full border border-[#acb3ba] bg-white px-2 py-2 text-sm";
 const button="border border-[#b8b8b8] bg-white px-4 py-2 text-sm hover:bg-[#e6e6e6] disabled:opacity-40";
 const money=(n:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n);
 const blank={code:"",name:"",sale_price:"",category_id:"",active:true};
+const parsePrice=(value:string)=>{const normalized=value.trim().replace(",",".");if(!/^\d+(?:\.\d{1,2})?$/.test(normalized))return null;const p=Number(normalized);return Number.isFinite(p)?p:null;};
 function ProductsPDV(){
  const [org,setOrg]=useState("");const [products,setProducts]=useState<Product[]>([]);
  const [categories,setCategories]=useState<Category[]>([]);const [view,setView]=useState<"products"|"categories"|"complementos"|"observacoes"|"tipos"|"perguntas"|"insumos"|"lote"|"nfe"|null>(null);
@@ -56,23 +57,25 @@ function ProductsPDV(){
  const bulkVisible=products.filter(p=>(bulkCategory==="all"||p.category_id===bulkCategory)&&(p.name+" "+(p.code||"")).toLocaleLowerCase("pt-BR").includes(bulkQuery.toLocaleLowerCase("pt-BR")));
  const applyBulk=async()=>{
   if(!org||busy||!bulkSelected.length)return;
-  const price=Number(bulkPrice.trim().replace(",","."));
-  if(bulkAction==="price"&&(!bulkPrice.trim()||!Number.isFinite(price)||price<0||Math.round(price*100)!==price*100)){setError("Informe um preço válido com até duas casas decimais.");return;}
-  const actionLabel=bulkAction==="price"?`alterar o preço para ${money(price)}`:bulkAction==="activate"?"ativar":"desativar";
+  const price=parsePrice(bulkPrice);
+  if(bulkAction==="price"&&price===null){setError("Informe um preço válido com até duas casas decimais.");return;}
+  const actionLabel=bulkAction==="price"?`alterar o preço para ${money(price!)}`:bulkAction==="activate"?"ativar":"desativar";
   if(!window.confirm(`Confirma ${actionLabel} em ${bulkSelected.length} produto(s)?`))return;
   setBusy(true);setError("");setNotice("");
   try{
    const selected=products.filter(p=>bulkSelected.includes(p.id));
-   const payload=bulkAction==="price"?{sale_price:price}:{active:bulkAction==="activate"};
-   let updated=0;
-   for(const product of selected){const {data,error:e}=await supabase.from("products").update(payload).eq("id",product.id).eq("organization_id",org).select("id");if(e)throw e;if(!data?.length)throw Error(`Sem permissão para atualizar ${product.name}.`);updated++;}
-   await load(org);setBulkSelected([]);setNotice(`${updated} produto(s) atualizado(s) em lote.`);
-  }catch(e){await load(org).catch(()=>{});setError((e instanceof Error?e.message:"Falha ao atualizar em lote.")+" Revise os produtos: parte da operação pode ter sido aplicada.");}finally{setBusy(false);}
+   if(!selected.length)throw Error("Nenhum produto válido selecionado.");
+   const payload=bulkAction==="price"?{sale_price:price!}:{active:bulkAction==="activate"};
+   const {data,error:e}=await supabase.from("products").update(payload).eq("organization_id",org).in("id",selected.map(p=>p.id)).select("id");
+   if(e)throw e;
+   if(data?.length!==selected.length)throw Error(`Confirmação incompleta: ${data?.length??0} de ${selected.length} produtos retornados. Atualize e confira a lista.`);
+   await load(org);setBulkSelected([]);setNotice(`${data.length} produto(s) atualizado(s) em lote.`);
+  }catch(e){await load(org).catch(()=>{});setError(e instanceof Error?e.message:"Falha ao atualizar em lote.");}finally{setBusy(false);}
  };
  const save=async(e:React.FormEvent)=>{e.preventDefault();if(!org||busy)return;setBusy(true);setError("");setNotice("");
  try{
-  const price=Number(form.sale_price.trim().replace(",",".").replace(/\s/g,""));
-  if(!form.sale_price.trim()||!form.name.trim()||!Number.isFinite(price)||price<0)throw Error("Informe nome e preço válido.");
+  const price=parsePrice(form.sale_price);
+  if(!form.sale_price.trim()||!form.name.trim()||price===null)throw Error("Informe nome e preço válido.");
   const normalizedName=form.name.trim().toLocaleLowerCase("pt-BR");
   const normalizedCode=form.code.trim().toLocaleLowerCase("pt-BR");
   if(products.some(p=>p.id!==edit&&p.name.trim().toLocaleLowerCase("pt-BR")===normalizedName))throw Error("Já existe um produto com este nome. Selecione-o na tabela para editar.");
